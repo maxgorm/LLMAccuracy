@@ -3,3 +3,6 @@ openpyxl
 portkey-ai
 deepdiff
 streamlit
+requests
+pdfplumber
+tabula-py

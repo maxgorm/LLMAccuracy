@@ -26,8 +26,14 @@ def run_streamlit_app():
 
     st.info("Upload the raw rent roll (.xlsx) and the verified version (.xlsx) to compare LLM parsing accuracy.")
 
-    uploaded_raw_file = st.file_uploader("1. Upload Raw Rent Roll (.xlsx)", type="xlsx")
+    uploaded_raw_file = st.file_uploader("1. Upload Raw Rent Roll (.xlsx or .pdf)", type=["xlsx", "pdf"])
     uploaded_verified_file = st.file_uploader("2. Upload Verified Rent Roll (.xlsx)", type="xlsx")
+
+    # Display file type information
+    if uploaded_raw_file is not None:
+        file_ext = os.path.splitext(uploaded_raw_file.name)[1].lower()
+        if file_ext == '.pdf':
+            st.info("PDF file detected. Data will be extracted from the PDF file.")
 
     if uploaded_raw_file and uploaded_verified_file:
         st.success("Files uploaded successfully!")
@@ -146,11 +152,27 @@ def run_streamlit_app():
 
             # Clean up temp files
             try:
-                os.remove(raw_temp_path)
-                os.remove(verified_temp_path)
-                os.remove(llm_output_filename)
+                # Only try to remove files that exist
+                if os.path.exists(raw_temp_path):
+                    os.remove(raw_temp_path)
+                if os.path.exists(verified_temp_path):
+                    os.remove(verified_temp_path)
+                if os.path.exists(llm_output_filename):
+                    os.remove(llm_output_filename)
+                
+                # Also clean up any debug files that might have been created
+                debug_files = [
+                    "raw_google_response.txt",
+                    "fixed_json.txt",
+                    "fixed_json_aggressive.txt",
+                    "error_google_response.txt"
+                ]
+                for file in debug_files:
+                    if os.path.exists(file):
+                        os.remove(file)
+                        
             except OSError as e:
-                st.warning(f"Could not remove temporary files: {e}")
+                st.warning(f"Could not remove some temporary files: {e}")
 
 if __name__ == "__main__":
     run_streamlit_app()

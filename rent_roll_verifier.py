@@ -4,6 +4,9 @@ from portkey_ai import Portkey
 import openpyxl # Needed for pandas to read .xlsx
 from datetime import datetime
 import re # For potential string cleaning
+import os
+import pdfplumber
+import tabula
 
 # --- LLM Prompts ---
 
@@ -38,7 +41,38 @@ in the same column like a floorplan or unit type. - Always give it as one decima
 tenant: The name of the current tenant. Use 'nan' for vacant units. - move_in: Move in date is the date the tenant moved into the unit (MM/DD/YYYY format). - 
 lease_start: The start date of the current lease agreement (MM/DD/YYYY format). - lease_end: The end date of the current lease agreement (MM/DD/YYYY format). 
 - rent_charge: The actual base lease rent paid by the tenant. - This always exist in the rent roll and can NEVER be null. - Do not try to calculate or derive. 
-Report as it is. - Do not confuse rent_charge with rent_market. - In case the rent roll has a charge_code_bd and it has the rent charge in it, pick this from the 'rent_charge'. - NEVER use a rent subsidy as 'rent_charge'. If a unit has a rent subsidy, that means 'rent_charge' is the resident's portion of the rent and not the net rent or rent subsidy. - rent_gov_subsidy: The portion of rent covered by any government housing assistance program or government subsidy, including Section 8, Housing Choice Vouchers, HAP payments, and any federal/state housing subsidies. - Look in columns such as HAP rent, section 8 etc. It could also be within the charge code breakdown. - In case there are no rent_gov_subsidy amount, make this 'nan'. - is_mtm: A flag indicating whether the unit is operating under a month-to-month (MTM) lease status rather than a fixed-term lease agreement. - Output 1 (true) to indicate MTM pricing is in effect: - The unit has MTM/MO/M-T-M flag or indicator in any status column - OR any MTM premium charges exist. i.e. 'mtm_charge' > 0 - OR lease dates show expired/holdover status continuing as MTM. - Output 0 (false) if there are no MTM pricing in effect. - IMPORTANT: Do not use 'nan' here. Just output 0 (false) if there are no MTM pricing in effect. - mtm_charge: Additional charges or premiums specifically applied when a unit operates on a month-to-month basis, separate from the base rent amount. - Must only exist when 'is_mtm' = 1 (true) - Check dedicated MTM columns, charge code breakdowns, or rent differentials - Must be converted to actual dollar amount if shown as percentage. e.g. 10% MTM premium on 1000 rent = 100 mtm_charge - If no MTM premium found, output 'nan' for mtm_charge. - rent_market: This is the current market rent of a unit in that area. - Extract Market Rent from the column that provides it directly. - One good way to spot the Market Rent is for the same type of unit this is same most of the time. - Do not confuse 'rent_market' with 'rent_charge'. - 'rent_market' is an assumed figure by the property owner while the 'rent_charge' is the actual amount paid by the tenat. - Market Rent represents the potential rent for the unit based on current market conditions, not necessarily what the current tenant is paying. - This value should be present for both occupied and vacant units. - If Market Rent value for a unit is not explicitly provided, do not attempt to infer or calculate it. In such cases, report it as 'nan'. 5. Column Mapping and Inference: - Map each piece of information to its actual column name from the data grid. - If a standard piece of information doesn't have a corresponding column in the original data, use the standard name for both parts of the tuple in col_map. - Do not infer or guess column names that are not present in the data grid. - If occupancy is not explicitly provided, derive it based on Current Lease Charge as described above. - IMPORTANT: In any case where there is no column name for a standard column, use the standard name for both the standard_column_name and actual_column_name_from_data_grid in the col_map. 6. Output Format: - Your response should be in JSON format, following the structure shown in the <EXAMPLE_OUTPUT_JSON> </EXAMPLE_OUTPUT_JSON> section. - Do not include any text outside of the JSON object in your response. - Do not use any markdown formatting in your response. - Respond with a JSON object containing "units". - IMPORTANT: I also need the row_index column for each unit in the output. - Follow the structure shown in the <EXAMPLE_OUTPUT_JSON> </EXAMPLE_OUTPUT_JSON> section. - Include only the JSON object in your response, without any additional text or formatting. - When you're using 'nan' for a certain value. ALWAYS use the string 'nan' (with quotes) instead of bare nan. - VERY IMPORTANT: Output all units from the RR. You are not allowed to miss any units. - IMPORTANT: Do not refrain from outputting certain units just because those units also contained in RR_FIRST_30_INPUT. - If the RR data structure is drastically different from the structure of 'RR_FIRST_30_INPUT', then just return an empty list for 'units'. - I'm also attaching the first 30 rows extract RR_FIRST_30_INPUT of the rent roll and your processed output RR_FIRST_30_OUTPUT for your reference. - This will give you an understanding of how you processed the input and column headers which might be missing from the current input. - I need you to keep the same headers exactly as the RR_FIRST_30_OUTPUT and keep the same structure. - In case RR_FIRST_30_INPUT and RR_FIRST_30_OUTPUT are not given this is your first input. """
+Report as it is. - Do not confuse rent_charge with rent_market. - In case the rent roll has a charge_code_bd and it has the rent charge in it, pick this from 
+the 'rent_charge'. - NEVER use a rent subsidy as 'rent_charge'. If a unit has a rent subsidy, that means 'rent_charge' is the resident's portion of the rent 
+and not the net rent or rent subsidy. - rent_gov_subsidy: The portion of rent covered by any government housing assistance program or government subsidy, 
+including Section 8, Housing Choice Vouchers, HAP payments, and any federal/state housing subsidies. - Look in columns such as HAP rent, section 8 etc. 
+It could also be within the charge code breakdown. - In case there are no rent_gov_subsidy amount, make this 'nan'. - is_mtm: A flag indicating whether the 
+unit is operating under a month-to-month (MTM) lease status rather than a fixed-term lease agreement. - Output 1 (true) to indicate MTM pricing is in 
+effect: - The unit has MTM/MO/M-T-M flag or indicator in any status column - OR any MTM premium charges exist. i.e. 'mtm_charge' > 0 - OR lease dates show 
+expired/holdover status continuing as MTM. - Output 0 (false) if there are no MTM pricing in effect. - IMPORTANT: Do not use 'nan' here. Just output 0 (false) 
+if there are no MTM pricing in effect. - mtm_charge: Additional charges or premiums specifically applied when a unit operates on a month-to-month basis, 
+separate from the base rent amount. - Must only exist when 'is_mtm' = 1 (true) - Check dedicated MTM columns, charge code breakdowns, or rent differentials - 
+Must be converted to actual dollar amount if shown as percentage. e.g. 10% MTM premium on 1000 rent = 100 mtm_charge - If no MTM premium found, output 
+'nan' for mtm_charge. - rent_market: This is the current market rent of a unit in that area. - Extract Market Rent from the column that provides it 
+directly. - One good way to spot the Market Rent is for the same type of unit this is same most of the time. - Do not confuse 'rent_market' with 
+'rent_charge'. - 'rent_market' is an assumed figure by the property owner while the 'rent_charge' is the actual amount paid by the tenat. - Market 
+Rent represents the potential rent for the unit based on current market conditions, not necessarily what the current tenant is paying. - This 
+value should be present for both occupied and vacant units. - If Market Rent value for a unit is not explicitly provided, do not attempt to 
+infer or calculate it. In such cases, report it as 'nan'. 5. Column Mapping and Inference: - Map each piece of information to its actual 
+column name from the data grid. - If a standard piece of information doesn't have a corresponding column in the original data, use the standard 
+name for both parts of the tuple in col_map. - Do not infer or guess column names that are not present in the data grid. - If occupancy is not 
+explicitly provided, derive it based on Current Lease Charge as described above. - IMPORTANT: In any case where there is no column name for a 
+standard column, use the standard name for both the standard_column_name and actual_column_name_from_data_grid in the col_map. 6. Output Format: - 
+Your response should be in JSON format, following the structure shown in the <EXAMPLE_OUTPUT_JSON> </EXAMPLE_OUTPUT_JSON> section. - Do not 
+include any text outside of the JSON object in your response. - Do not use any markdown formatting in your response. - Respond with a JSON 
+object containing "units". - IMPORTANT: I also need the row_index column for each unit in the output. - Follow the structure shown in the 
+<EXAMPLE_OUTPUT_JSON> </EXAMPLE_OUTPUT_JSON> section. - Include only the JSON object in your response, without any additional text or formatting. 
+- When you're using 'nan' for a certain value. ALWAYS use the string 'nan' (with quotes) instead of bare nan. - VERY IMPORTANT: Output all units 
+from the RR. You are not allowed to miss any units. - IMPORTANT: Do not refrain from outputting certain units just because those units also 
+contained in RR_FIRST_30_INPUT. - If the RR data structure is drastically different from the structure of 'RR_FIRST_30_INPUT', then just 
+return an empty list for 'units'. - I'm also attaching the first 30 rows extract RR_FIRST_30_INPUT of the rent roll and your processed 
+output RR_FIRST_30_OUTPUT for your reference. - This will give you an understanding of how you processed the input and column headers which 
+might be missing from the current input. - I need you to keep the same headers exactly as the RR_FIRST_30_OUTPUT and keep the same 
+structure. - In case RR_FIRST_30_INPUT and RR_FIRST_30_OUTPUT are not given this is your first input. """
 
 # --- Configuration ---
 PORTKEY_API_KEY = "3jxFpu/1D/jkEUJTB5YwWUuW6Knb" # Replace with your actual Portkey API key
@@ -61,9 +95,28 @@ def find_header_row(df):
     return None # Header row not found
 
 def extract_rent_roll_string(file_path):
-    """Reads the Excel file, finds the header row containing 'unit', and extracts data from the next row onwards."""
+    """Reads the Excel or PDF file, finds the header row containing 'unit', and extracts data from the next row onwards."""
     try:
-        df = pd.read_excel(file_path, engine='openpyxl', header=None) # Read all data first
+        # Check file extension to determine processing method
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        if file_ext == '.pdf':
+            print(f"Processing PDF file: {file_path}")
+            return extract_from_pdf(file_path)
+        else:  # Default to Excel processing for .xlsx and other formats
+            print(f"Processing Excel file: {file_path}")
+            return extract_from_excel(file_path)
+    except FileNotFoundError:
+        print(f"Error: File not found at {file_path}")
+        return None
+    except Exception as e:
+        print(f"Error processing file {file_path}: {e}")
+        return None
+
+def extract_from_excel(file_path):
+    """Extract data from Excel file."""
+    try:
+        df = pd.read_excel(file_path, engine='openpyxl', header=None)  # Read all data first
 
         header_row_index = find_header_row(df)
 
@@ -75,30 +128,104 @@ def extract_rent_roll_string(file_path):
             return f"<RR>\n{rr_string}\n</RR>"
 
         # Read the relevant part of the sheet again, starting from the row *after* the header
-        # Use the found header_row_index + 1 as the start, but pandas header is 0-based index *of the header*
-        # So, read from the beginning but specify the header row index. Data starts below it.
-        # Let's re-read with the correct header index to get proper column names if needed later,
-        # but for string conversion, we just need the data rows.
         df_data = pd.read_excel(file_path, engine='openpyxl', header=header_row_index)
 
-        # Convert only the data rows (starting from header_row_index + 1 in original df) to string
+        # Convert only the data rows to string
         df_data.fillna('NULL', inplace=True)
-        # Include header in the string representation for the LLM context? Prompt implies yes.
-        # Let's include the identified header row and the data rows.
-        # Use .copy() to avoid SettingWithCopyWarning
+        # Include header in the string representation for the LLM context
         df_subset = df.iloc[header_row_index:].copy()
         # Convert to string *before* filling NaN to avoid dtype issues
         df_subset = df_subset.astype(str)
         df_subset.fillna('NULL', inplace=True)
-        rr_string = df_subset.to_string(index=False, header=False) # Convert data including header row
+        rr_string = df_subset.to_string(index=False, header=False)  # Convert data including header row
 
         print(f"Extracted data starting from row {header_row_index + 1} (0-indexed).")
         return f"<RR>\n{rr_string}\n</RR>"
-    except FileNotFoundError:
-        print(f"Error: File not found at {file_path}")
-        return None
     except Exception as e:
         print(f"Error reading Excel file {file_path}: {e}")
+        return None
+
+def extract_from_pdf(file_path):
+    """Extract data from PDF file using multiple methods and select the best result."""
+    try:
+        # Try tabula-py first (Java-based, good for structured tables)
+        print("Attempting to extract tables with tabula-py...")
+        tables = tabula.read_pdf(file_path, pages='all', multiple_tables=True)
+        
+        if tables and len(tables) > 0:
+            # Find the table that likely contains the rent roll data (look for 'unit' column)
+            rent_roll_table = None
+            for table in tables:
+                # Check if any column name contains 'unit' (case-insensitive)
+                if any('unit' in str(col).lower() for col in table.columns):
+                    rent_roll_table = table
+                    break
+                
+                # If no column header contains 'unit', check the first few rows
+                for i in range(min(5, len(table))):
+                    if any('unit' in str(cell).lower() for cell in table.iloc[i]):
+                        # Found 'unit' in a row, treat this as a potential header row
+                        rent_roll_table = table
+                        break
+                
+                if rent_roll_table is not None:
+                    break
+            
+            if rent_roll_table is not None:
+                # Process the found table
+                rent_roll_table.fillna('NULL', inplace=True)
+                rr_string = rent_roll_table.to_string(index=False)
+                print("Successfully extracted table with tabula-py.")
+                return f"<RR>\n{rr_string}\n</RR>"
+        
+        # If tabula-py didn't find a suitable table, try pdfplumber
+        print("Attempting to extract tables with pdfplumber...")
+        all_tables = []
+        with pdfplumber.open(file_path) as pdf:
+            for page in pdf.pages:
+                tables = page.extract_tables()
+                if tables:
+                    all_tables.extend(tables)
+        
+        if all_tables:
+            # Find the table that likely contains the rent roll data
+            rent_roll_table = None
+            for table in all_tables:
+                # Check if any cell in the first few rows contains 'unit' (case-insensitive)
+                for row_idx, row in enumerate(table[:5]):  # Check first 5 rows
+                    if any('unit' in str(cell).lower() for cell in row if cell):
+                        rent_roll_table = table
+                        break
+                
+                if rent_roll_table is not None:
+                    break
+            
+            if rent_roll_table is not None:
+                # Convert the table to a DataFrame
+                df = pd.DataFrame(rent_roll_table[1:], columns=rent_roll_table[0])
+                df.fillna('NULL', inplace=True)
+                rr_string = df.to_string(index=False)
+                print("Successfully extracted table with pdfplumber.")
+                return f"<RR>\n{rr_string}\n</RR>"
+        
+        # If both methods failed, extract all text as a fallback
+        print("Table extraction failed. Extracting all text as fallback...")
+        with pdfplumber.open(file_path) as pdf:
+            text = ""
+            for page in pdf.pages:
+                text += page.extract_text() + "\n"
+        
+        if text.strip():
+            print("Extracted text from PDF (no structured tables found).")
+            return f"<RR>\n{text}\n</RR>"
+        
+        print("Failed to extract any meaningful data from the PDF.")
+        return None
+    
+    except Exception as e:
+        print(f"Error extracting data from PDF {file_path}: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def query_llm(portkey_client, prompt, model_virtual_key, model_name, provider_name):
@@ -121,35 +248,117 @@ def query_llm(portkey_client, prompt, model_virtual_key, model_name, provider_na
         # --- Attempt JSON parsing only if expected (e.g., for Gemini) ---
         if provider_name == "google": # Assume only Google/Gemini is expected to return JSON for now
             print(f"Attempting to parse JSON response from {model_name} ({provider_name})...")
+            
+            # Save the raw response for debugging
+            with open(f"raw_{provider_name}_response.txt", "w") as f:
+                f.write(content)
+            print(f"Saved raw response to raw_{provider_name}_response.txt")
+            
             # Attempt to find JSON within potential markdown fences
             match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
             if match:
                 json_str = match.group(1)
+                print("Found JSON within code blocks")
             else:
                 # Assume the whole content is JSON if no fences are found
                 json_str = content
+                print("No code blocks found, treating entire response as JSON")
 
             # Clean potential leading/trailing whitespace or non-JSON text before parsing
             json_str = json_str.strip()
-
-            # Attempt to fix common JSON errors
-            # 1. Missing comma between objects
-            json_str = re.sub(r'}\s*{', '},{', json_str)
-            # 2. Missing comma after "row_index": number followed by another key
-            # Looks for "row_index": number\n (optional whitespace) "key"
-            json_str = re.sub(r'("row_index":\s*\d+)\s*\n\s*(")', r'\1,\n\2', json_str)
-
-            if not json_str.startswith('{') or not json_str.endswith('}'):
-                 # If it doesn't look like a JSON object, try finding one within
-                 start = json_str.find('{')
-                 end = json_str.rfind('}')
-                 if start != -1 and end != -1 and start < end:
-                     json_str = json_str[start:end+1]
-                 else:
-                     # Raise specific error if JSON structure not found
-                     raise ValueError(f"Could not extract valid JSON object from {model_name} response.")
-
-            return json.loads(json_str)
+            
+            # Advanced JSON fixing
+            try:
+                # First attempt to fix common JSON errors
+                # 1. Missing comma between objects
+                json_str = re.sub(r'}\s*{', '},{', json_str)
+                
+                # 2. Missing comma after any key-value pair followed by another key
+                # This is a more general version of the previous fix
+                json_str = re.sub(r'(:\s*[^,{}\[\]]+)\s*\n\s*(")', r'\1,\n\2', json_str)
+                
+                # 3. Missing comma after a number followed by a key
+                json_str = re.sub(r'(\d+)\s*\n\s*(")', r'\1,\n\2', json_str)
+                
+                # 4. Missing comma after a quoted string followed by a key
+                json_str = re.sub(r'("[^"]*")\s*\n\s*(")', r'\1,\n\2', json_str)
+                
+                # 5. Missing comma after a boolean or null followed by a key
+                json_str = re.sub(r'(true|false|null)\s*\n\s*(")', r'\1,\n\2', json_str)
+                
+                # 6. Fix trailing commas in arrays or objects
+                json_str = re.sub(r',\s*}', '}', json_str)
+                json_str = re.sub(r',\s*\]', ']', json_str)
+                
+                # 7. Fix missing quotes around keys
+                json_str = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', json_str)
+                
+                # Extract the JSON object if it's embedded in other text
+                if not json_str.startswith('{') or not json_str.endswith('}'):
+                    # If it doesn't look like a JSON object, try finding one within
+                    start = json_str.find('{')
+                    end = json_str.rfind('}')
+                    if start != -1 and end != -1 and start < end:
+                        json_str = json_str[start:end+1]
+                        print(f"Extracted JSON object from position {start} to {end}")
+                    else:
+                        # Raise specific error if JSON structure not found
+                        raise ValueError(f"Could not extract valid JSON object from {model_name} response.")
+                
+                # Save the fixed JSON for debugging
+                with open("fixed_json.txt", "w") as f:
+                    f.write(json_str)
+                print("Saved fixed JSON to fixed_json.txt")
+                
+                # Try to parse the fixed JSON
+                return json.loads(json_str)
+                
+            except json.JSONDecodeError as e:
+                print(f"Initial JSON fixing failed: {e}")
+                print("Attempting more aggressive JSON repair...")
+                
+                # More aggressive fixing for specific error cases
+                error_msg = str(e)
+                
+                # Handle specific error: Expecting ',' delimiter
+                if "Expecting ',' delimiter" in error_msg:
+                    # Extract the line and column from the error message
+                    match = re.search(r'line (\d+) column (\d+)', error_msg)
+                    if match:
+                        line_num = int(match.group(1))
+                        col_num = int(match.group(2))
+                        
+                        # Split the JSON string into lines
+                        lines = json_str.split('\n')
+                        
+                        # Make sure we have enough lines
+                        if line_num <= len(lines):
+                            # Get the problematic line
+                            line = lines[line_num - 1]
+                            
+                            # Insert a comma at the specified column
+                            if col_num <= len(line):
+                                fixed_line = line[:col_num] + ',' + line[col_num:]
+                                lines[line_num - 1] = fixed_line
+                                
+                                # Rejoin the lines
+                                json_str = '\n'.join(lines)
+                                print(f"Inserted comma at line {line_num}, column {col_num}")
+                                
+                                # Save the fixed JSON for debugging
+                                with open("fixed_json_aggressive.txt", "w") as f:
+                                    f.write(json_str)
+                                print("Saved aggressively fixed JSON to fixed_json_aggressive.txt")
+                                
+                                # Try to parse the fixed JSON again
+                                try:
+                                    return json.loads(json_str)
+                                except json.JSONDecodeError as e2:
+                                    print(f"Aggressive JSON fixing also failed: {e2}")
+                
+                # If we get here, all fixing attempts have failed
+                print("All JSON fixing attempts failed. Returning None.")
+                return None
         else:
             # For other providers (like Claude here), return the raw content
             print(f"Returning raw text response from {model_name} ({provider_name}).")
@@ -158,7 +367,16 @@ def query_llm(portkey_client, prompt, model_virtual_key, model_name, provider_na
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON from {model_name} ({provider_name}): {e}")
         print("Raw response content:")
-        print(content) # Print raw response for debugging
+        print(content[:500] + "..." if len(content) > 500 else content)  # Print first 500 chars for debugging
+        
+        # Save the problematic response for offline analysis
+        try:
+            with open(f"error_{provider_name}_response.txt", "w") as f:
+                f.write(content)
+            print(f"Saved error response to error_{provider_name}_response.txt")
+        except Exception as write_err:
+            print(f"Could not save error response: {write_err}")
+            
         return None
     except Exception as e:
         print(f"Error querying {model_name} via Portkey: {e}")
@@ -240,16 +458,33 @@ def compare_data(llm_output_json, verified_file_path):
 
 
         # --- Construct Match Key ---
-        # Use normalized tenant name and move-in date using vectorized operations
-        tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str)) # Get column or empty series
-        move_in_col_v = df_verified.get('move_in', pd.Series(dtype=str))
-        df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower() + "|" + \
-                                   move_in_col_v.fillna('').astype(str).str.strip().str.lower()
+        # Check if move_in dates are available in LLM output
+        has_move_in_dates = not df_llm['move_in'].isna().all() and not (df_llm['move_in'] == 'nan').all()
+        
+        if has_move_in_dates:
+            # Use normalized tenant name and move-in date using vectorized operations
+            print("Using tenant name and move-in date for matching...")
+            tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str)) # Get column or empty series
+            move_in_col_v = df_verified.get('move_in', pd.Series(dtype=str))
+            df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower() + "|" + \
+                                      move_in_col_v.fillna('').astype(str).str.strip().str.lower()
 
-        tenant_col_l = df_llm.get('tenant', pd.Series(dtype=str))
-        move_in_col_l = df_llm.get('move_in', pd.Series(dtype=str))
-        df_llm['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower() + "|" + \
-                              move_in_col_l.fillna('').astype(str).str.strip().str.lower()
+            tenant_col_l = df_llm.get('tenant', pd.Series(dtype=str))
+            move_in_col_l = df_llm.get('move_in', pd.Series(dtype=str))
+            df_llm['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower() + "|" + \
+                                 move_in_col_l.fillna('').astype(str).str.strip().str.lower()
+        else:
+            # Use only tenant name for matching if move_in dates are not available
+            print("Move-in dates not available in LLM output. Using only tenant name for matching...")
+            tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str))
+            df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower()
+            
+            tenant_col_l = df_llm.get('tenant', pd.Series(dtype=str))
+            df_llm['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower()
+            
+            # Remove commas from tenant names for better matching
+            df_verified['match_key'] = df_verified['match_key'].str.replace(',', '')
+            df_llm['match_key'] = df_llm['match_key'].str.replace(',', '')
 
         # --- Merge and Compare ---
         merged = df_llm.merge(df_verified, on="match_key", suffixes=("_llm", "_verified"), how="outer", indicator=True)
@@ -622,11 +857,25 @@ if __name__ == "__main__":
             print("Streamlit is not installed. Please install it with: pip install streamlit")
     else:
         # We're running as a regular Python script
-        # Use the provided sample files
-        RAW_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx"
-        VERIFIED_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"
-        OUTPUT_DIFF_JSON = "comparison_diff.json" # Optional: Set to None to disable saving diffs
-        
-        main(RAW_RENT_ROLL_FILE, VERIFIED_RENT_ROLL_FILE, OUTPUT_DIFF_JSON)
+        # Check if command-line arguments are provided
+        if len(sys.argv) > 1:
+            # Use command-line arguments
+            raw_file = sys.argv[1]
+            verified_file = sys.argv[2] if len(sys.argv) > 2 else "Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"
+            output_diff_file = sys.argv[3] if len(sys.argv) > 3 else "comparison_diff.json"
+            
+            print(f"Using command-line arguments:")
+            print(f"Raw file: {raw_file}")
+            print(f"Verified file: {verified_file}")
+            print(f"Output diff file: {output_diff_file}")
+            
+            main(raw_file, verified_file, output_diff_file)
+        else:
+            # Use the provided sample files
+            RAW_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx"
+            VERIFIED_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"
+            OUTPUT_DIFF_JSON = "comparison_diff.json" # Optional: Set to None to disable saving diffs
+            
+            main(RAW_RENT_ROLL_FILE, VERIFIED_RENT_ROLL_FILE, OUTPUT_DIFF_JSON)
 
 # End of script
