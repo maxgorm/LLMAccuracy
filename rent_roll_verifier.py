@@ -648,7 +648,7 @@ def main(raw_file, verified_file, output_diff_file=None):
 
     # Step 2b: Query Gemini
     print("Querying Gemini (Step 2b)...")
-    gemini_model = "gemini-2.5-pro-exp-03-25" # Using gemini-2.5-pro-exp-03-25 as requested
+    gemini_model = "gemini-2.5-flash-preview-04-17" # Using gemini-2.5-pro-exp-03-25 as requested
     # Gemini prompt uses the original rr_string according to its content
     gemini_prompt = PROMPT_PART_2_GEMINI + rr_string
     gemini_json_output = query_llm(portkey, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
@@ -740,7 +740,7 @@ def run_streamlit_app():
 
                         # Query Gemini
                         st.write("Querying Gemini...")
-                        gemini_model = "gemini-2.0-flash"
+                        gemini_model = "gemini-2.5-flash-preview-04-17"
                         gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
                         gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 
