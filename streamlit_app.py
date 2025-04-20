@@ -58,20 +58,20 @@ def run_streamlit_app():
                     try:
                         portkey_st = Portkey(api_key=PORTKEY_API_KEY)
 
-                        # Query Claude first (as in the main pipeline)
-                        st.write("Querying Claude...")
-                        claude_model = "claude-3-7-sonnet-latest"
+                        # Query Gemini for first part (previously Claude)
+                        st.write("Querying Gemini for first part...")
+                        claude_model = "gemini-2.5-pro-exp-03-25"
                         claude_prompt = PROMPT_PART_1_CLAUDE + rr_string_st
-                        claude_response_text = query_llm(portkey_st, claude_prompt, CLAUDE_VIRTUAL_KEY, claude_model, "anthropic")
+                        claude_response_text = query_llm(portkey_st, claude_prompt, GEMINI_VIRTUAL_KEY, claude_model, "google")
                         
                         if claude_response_text is not None and isinstance(claude_response_text, str) and claude_response_text:
-                            st.write("Claude query successful.")
+                            st.write("Gemini first part query successful.")
                         else:
-                            st.warning("Claude query returned empty or invalid response. Proceeding with Gemini only.")
+                            st.warning("Gemini first part query returned empty or invalid response. Proceeding with second Gemini query only.")
 
-                        # Query Gemini
-                        st.write("Querying Gemini...")
-                        gemini_model = "gemini-2.0-flash"
+                        # Query Gemini for second part
+                        st.write("Querying Gemini for second part...")
+                        gemini_model = "gemini-2.5-pro-exp-03-25"
                         gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
                         gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 

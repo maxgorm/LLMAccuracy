@@ -1,0 +1,475 @@
+{
+  "accuracy_percent": 87.36,
+  "field_mismatches": {
+    "unit_type": [
+      {
+        "key": "williams, lakeisha g.|04/01/2021",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "curry, jessica|04/01/2021",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "jennings, katrina l.|02/22/2020",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "cansler, kizzy s.|10/01/2021",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "nowicki, michael|11/13/2015",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "odom, taylor|02/06/2024",
+        "api_value": "3/2-1066",
+        "verified_value": NaN
+      },
+      {
+        "key": "bingemer, joseph|06/01/2000",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "haynes, daniel|01/02/2024",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "cox, jeffery|10/15/2019",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "richardson, james|09/01/2016",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "sutton, caine|07/12/2023",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "feldpausch, david|07/01/2005",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "smith, mackenzie|12/01/2023",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "pettus, decoreon|10/01/2019",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "<<<vacant-unassigned>>|",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "brown, makel|11/02/2023",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "starnes, tamara|11/21/2022",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "parker, gabriel t.|10/17/2022",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "alexander, darian|03/14/2023",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "harris, bert|08/15/2014",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "tippett, joshua|04/01/2020",
+        "api_value": "1/1-645",
+        "verified_value": NaN
+      },
+      {
+        "key": "gary, rebecca|08/01/2016",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "springfield, sabrina|03/16/2023",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "mason, robert|05/24/2023",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "wallace, kimberly|08/20/2020",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "mays iii, terry s.|08/02/2021",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "hendricks, sarah|07/03/2018",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "fossum, brendan|10/19/2020",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "walker, katrina|10/26/2001",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "hall, makenzie|12/06/2023",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "carver, veronica|04/19/2021",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "antoine, jeff|03/07/2022",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "brown, tiffany|11/23/2016",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "douthit, brandi|04/13/2022",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "kuhs, megan|05/07/2019",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      },
+      {
+        "key": "underhill, amanda|01/06/2023",
+        "api_value": "2/1-777",
+        "verified_value": NaN
+      }
+    ],
+    "unit_num": [
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   103",
+        "verified_value": "604   104"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   103",
+        "verified_value": "604   214"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   103",
+        "verified_value": "604   312"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   104",
+        "verified_value": "604   103"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   104",
+        "verified_value": "604   214"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   104",
+        "verified_value": "604   312"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   214",
+        "verified_value": "604   103"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   214",
+        "verified_value": "604   104"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   214",
+        "verified_value": "604   312"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   312",
+        "verified_value": "604   103"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   312",
+        "verified_value": "604   104"
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": "604   312",
+        "verified_value": "604   214"
+      }
+    ],
+    "sqft": [
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1066.0,
+        "verified_value": 645
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1066.0,
+        "verified_value": 777
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1066.0,
+        "verified_value": 645
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1066.0,
+        "verified_value": 777
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 645.0,
+        "verified_value": 1066
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 645.0,
+        "verified_value": 1066
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 645.0,
+        "verified_value": 777
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 777.0,
+        "verified_value": 1066
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 777.0,
+        "verified_value": 1066
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 777.0,
+        "verified_value": 645
+      }
+    ],
+    "br": [
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 3.0,
+        "verified_value": 1
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 3.0,
+        "verified_value": 2
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 3.0,
+        "verified_value": 1
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 3.0,
+        "verified_value": 2
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 3
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 3
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 2
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 3
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 3
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 1
+      }
+    ],
+    "bath": [
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 1
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 1
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 1
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 2.0,
+        "verified_value": 1
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 2
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 2
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 2
+      },
+      {
+        "key": "<<<vacant-assigned>>>|",
+        "api_value": 1.0,
+        "verified_value": 2
+      }
+    ]
+  }
+}

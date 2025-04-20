@@ -622,14 +622,14 @@ def main(raw_file, verified_file, output_diff_file=None):
         print(f"Error initializing Portkey client: {e}")
         return
 
-    # Step 2a: Query Claude (as per pipeline description, though output isn't directly used by Gemini prompt)
-    print("\nQuerying Claude (Step 2a)...")
-    claude_model = "claude-3-7-sonnet-latest" # Using Sonnet as requested
+    # Step 2a: Query Gemini for first part (previously Claude)
+    print("\nQuerying Gemini for first part (Step 2a)...")
+    claude_model = "gemini-2.5-pro-exp-03-25" # Using Gemini as requested
     claude_prompt = PROMPT_PART_1_CLAUDE + rr_string
-    # We call Claude but don't use its direct output based on Gemini prompt's structure
+    # We call Gemini but don't use its direct output based on the second Gemini prompt's structure
     try:
-        # Store Claude's response (now expected as raw text)
-        claude_response_text = query_llm(portkey, claude_prompt, CLAUDE_VIRTUAL_KEY, claude_model, "anthropic")
+        # Store Gemini's response (now expected as raw text)
+        claude_response_text = query_llm(portkey, claude_prompt, GEMINI_VIRTUAL_KEY, claude_model, "google")
         if claude_response_text is not None:
              # Check if it's a string and not empty
             if isinstance(claude_response_text, str) and claude_response_text:
@@ -648,7 +648,7 @@ def main(raw_file, verified_file, output_diff_file=None):
 
     # Step 2b: Query Gemini
     print("Querying Gemini (Step 2b)...")
-    gemini_model = "gemini-2.0-flash" # Using flash as requested
+    gemini_model = "gemini-2.5-pro-exp-03-25" # Using gemini-2.5-pro-exp-03-25 as requested
     # Gemini prompt uses the original rr_string according to its content
     gemini_prompt = PROMPT_PART_2_GEMINI + rr_string
     gemini_json_output = query_llm(portkey, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")

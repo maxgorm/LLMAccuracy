@@ -1,0 +1,1061 @@
+{
+  "job": {
+    "id": "8502f87f-53d8-41f9-ad68-28f964b7ac62",
+    "status": "completed",
+    "document_type": "rent_roll",
+    "created_at": "2025-04-18T17:16:31.81525+00:00",
+    "api_token_id": 5,
+    "end_time": "2025-04-18T17:16:32.29526+00:00",
+    "file_name": "Saddlebrook I RR 02-23-24.xlsx",
+    "user_id": null,
+    "error": null
+  },
+  "df": [
+    {
+      "row_index": 4,
+      "unit_num": "604   101",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "OCC",
+      "tenant": "WILLIAMS, LAKEISHA G.",
+      "move_in": "2021-04-01",
+      "lease_start": "2021-04-01",
+      "lease_end": "2024-03-31",
+      "rent_market": 0.0,
+      "rent_charge": 860.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 860.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 5,
+      "unit_num": "604   102",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "OCC",
+      "tenant": "CURRY, JESSICA",
+      "move_in": "2021-04-01",
+      "lease_start": "2021-04-01",
+      "lease_end": "2024-03-31",
+      "rent_market": 0.0,
+      "rent_charge": 910.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 910.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 6,
+      "unit_num": "604   103",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "VAC",
+      "tenant": "<<<Vacant-Assigned>>>",
+      "move_in": null,
+      "lease_start": null,
+      "lease_end": null,
+      "rent_market": 0.0,
+      "rent_charge": 0.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 0.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 7,
+      "unit_num": "604   104",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "VAC",
+      "tenant": "<<<Vacant-Assigned>>>",
+      "move_in": null,
+      "lease_start": null,
+      "lease_end": null,
+      "rent_market": 0.0,
+      "rent_charge": 0.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 0.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 8,
+      "unit_num": "604   105",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "OCC",
+      "tenant": "JENNINGS, KATRINA L.",
+      "move_in": "2020-02-22",
+      "lease_start": "2020-02-22",
+      "lease_end": "2025-02-21",
+      "rent_market": 0.0,
+      "rent_charge": 860.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 860.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 9,
+      "unit_num": "604   106",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "OCC",
+      "tenant": "CANSLER, KIZZY S.",
+      "move_in": "2021-10-01",
+      "lease_start": "2021-10-01",
+      "lease_end": "2024-09-30",
+      "rent_market": 0.0,
+      "rent_charge": 860.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 860.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 10,
+      "unit_num": "604   107",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "OCC",
+      "tenant": "NOWICKI, MICHAEL",
+      "move_in": "2015-11-13",
+      "lease_start": "2015-11-13",
+      "lease_end": "2024-11-12",
+      "rent_market": 0.0,
+      "rent_charge": 860.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 860.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 25
+        }
+      ]
+    },
+    {
+      "row_index": 11,
+      "unit_num": "604   108",
+      "unit_type": "3/2-1066",
+      "sqft": 1066.0,
+      "br": 3.0,
+      "bath": 2.0,
+      "occupancy": "OCC",
+      "tenant": "ODOM, TAYLOR",
+      "move_in": "2024-02-06",
+      "lease_start": "2024-02-06",
+      "lease_end": "2025-02-05",
+      "rent_market": 0.0,
+      "rent_charge": 932.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 932.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 12,
+      "unit_num": "604   201",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "BINGEMER, JOSEPH",
+      "move_in": "2000-06-01",
+      "lease_start": "2000-06-01",
+      "lease_end": "2024-05-31",
+      "rent_market": 0.0,
+      "rent_charge": 198.0,
+      "rent_gov_subsidy": 452.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 650.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 13,
+      "unit_num": "604   202",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "HAYNES, DANIEL",
+      "move_in": "2024-01-02",
+      "lease_start": "2024-01-02",
+      "lease_end": "2025-01-01",
+      "rent_market": 0.0,
+      "rent_charge": 668.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 668.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 14,
+      "unit_num": "604   203",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "COX, JEFFERY",
+      "move_in": "2019-10-15",
+      "lease_start": "2019-10-15",
+      "lease_end": "2024-10-14",
+      "rent_market": 0.0,
+      "rent_charge": 660.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 660.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "row_index": 15,
+      "unit_num": "604   204",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "RICHARDSON, JAMES",
+      "move_in": "2016-09-01",
+      "lease_start": "2016-09-01",
+      "lease_end": "2024-08-31",
+      "rent_market": 0.0,
+      "rent_charge": 301.0,
+      "rent_gov_subsidy": 359.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 660.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 16,
+      "unit_num": "604   205",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "SUTTON, CAINE",
+      "move_in": "2023-07-12",
+      "lease_start": "2023-07-12",
+      "lease_end": "2024-07-11",
+      "rent_market": 0.0,
+      "rent_charge": 668.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 668.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 17,
+      "unit_num": "604   206",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "FELDPAUSCH, DAVID",
+      "move_in": "2005-07-01",
+      "lease_start": "2005-07-01",
+      "lease_end": "2024-06-30",
+      "rent_market": 0.0,
+      "rent_charge": 332.0,
+      "rent_gov_subsidy": 318.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 650.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 18,
+      "unit_num": "604   207",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "SMITH, MACKENZIE",
+      "move_in": "2023-12-01",
+      "lease_start": "2023-12-01",
+      "lease_end": "2024-11-30",
+      "rent_market": 0.0,
+      "rent_charge": 183.0,
+      "rent_gov_subsidy": 485.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 668.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 19,
+      "unit_num": "604   208",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "PETTUS, DECOREON",
+      "move_in": "2019-10-01",
+      "lease_start": "2019-10-01",
+      "lease_end": "2024-09-30",
+      "rent_market": 0.0,
+      "rent_charge": 192.0,
+      "rent_gov_subsidy": 468.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 660.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 20,
+      "unit_num": "604   209",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "VAC",
+      "tenant": "<<<Vacant-Unassigned>>",
+      "move_in": null,
+      "lease_start": null,
+      "lease_end": null,
+      "rent_market": 0.0,
+      "rent_charge": 0.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 0.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 21,
+      "unit_num": "604   210",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "BROWN, MAKEL",
+      "move_in": "2023-11-02",
+      "lease_start": "2023-11-02",
+      "lease_end": "2024-11-01",
+      "rent_market": 0.0,
+      "rent_charge": 668.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 668.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 22,
+      "unit_num": "604   211",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "STARNES, TAMARA",
+      "move_in": "2022-11-21",
+      "lease_start": "2022-11-21",
+      "lease_end": "2024-11-20",
+      "rent_market": 0.0,
+      "rent_charge": 668.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 668.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 23,
+      "unit_num": "604   212",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "PARKER, GABRIEL T.",
+      "move_in": "2022-10-17",
+      "lease_start": "2022-10-17",
+      "lease_end": "2024-10-16",
+      "rent_market": 0.0,
+      "rent_charge": 668.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 668.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 25
+        }
+      ]
+    },
+    {
+      "row_index": 24,
+      "unit_num": "604   213",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "ALEXANDER, DARIAN",
+      "move_in": "2023-03-14",
+      "lease_start": "2023-03-14",
+      "lease_end": "2025-03-13",
+      "rent_market": 0.0,
+      "rent_charge": 653.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 653.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 25,
+      "unit_num": "604   214",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "VAC",
+      "tenant": "<<<Vacant-Assigned>>>",
+      "move_in": null,
+      "lease_start": null,
+      "lease_end": null,
+      "rent_market": 0.0,
+      "rent_charge": 0.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 0.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 26,
+      "unit_num": "604   215",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "HARRIS, BERT",
+      "move_in": "2014-08-15",
+      "lease_start": "2014-08-15",
+      "lease_end": "2024-08-14",
+      "rent_market": 0.0,
+      "rent_charge": 369.0,
+      "rent_gov_subsidy": 291.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 660.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 27,
+      "unit_num": "604   216",
+      "unit_type": "1/1-645",
+      "sqft": 645.0,
+      "br": 1.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "TIPPETT, JOSHUA",
+      "move_in": "2020-04-01",
+      "lease_start": "2020-04-01",
+      "lease_end": "2025-03-31",
+      "rent_market": 0.0,
+      "rent_charge": 192.0,
+      "rent_gov_subsidy": 458.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 650.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 28,
+      "unit_num": "604   301",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "GARY, REBECCA",
+      "move_in": "2016-08-01",
+      "lease_start": "2016-08-01",
+      "lease_end": "2024-07-31",
+      "rent_market": 0.0,
+      "rent_charge": 215.0,
+      "rent_gov_subsidy": 520.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 735.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 29,
+      "unit_num": "604   302",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "SPRINGFIELD, SABRINA",
+      "move_in": "2023-03-16",
+      "lease_start": "2023-03-16",
+      "lease_end": "2025-03-15",
+      "rent_market": 0.0,
+      "rent_charge": 735.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 735.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 30,
+      "unit_num": "604   303",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "MASON, ROBERT",
+      "move_in": "2023-05-24",
+      "lease_start": "2023-05-24",
+      "lease_end": "2024-05-23",
+      "rent_market": 0.0,
+      "rent_charge": 735.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 735.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 31,
+      "unit_num": "604   304",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "WALLACE, KIMBERLY",
+      "move_in": "2020-08-20",
+      "lease_start": "2020-08-20",
+      "lease_end": "2024-08-19",
+      "rent_market": 0.0,
+      "rent_charge": 13.0,
+      "rent_gov_subsidy": 722.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 735.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 25
+        }
+      ]
+    },
+    {
+      "row_index": 32,
+      "unit_num": "604   305",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "MAYS III, TERRY S.",
+      "move_in": "2021-08-02",
+      "lease_start": "2021-08-02",
+      "lease_end": "2024-08-01",
+      "rent_market": 0.0,
+      "rent_charge": 200.0,
+      "rent_gov_subsidy": 535.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 735.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 33,
+      "unit_num": "604   306",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "HENDRICKS, SARAH",
+      "move_in": "2018-07-03",
+      "lease_start": "2018-07-03",
+      "lease_end": "2024-07-02",
+      "rent_market": 0.0,
+      "rent_charge": 275.0,
+      "rent_gov_subsidy": 460.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 735.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 34,
+      "unit_num": "604   307",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "FOSSUM, BRENDAN",
+      "move_in": "2020-10-19",
+      "lease_start": "2020-10-19",
+      "lease_end": "2024-10-18",
+      "rent_market": 0.0,
+      "rent_charge": 745.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 745.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 25
+        }
+      ]
+    },
+    {
+      "row_index": 35,
+      "unit_num": "604   308",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "WALKER, KATRINA",
+      "move_in": "2001-10-26",
+      "lease_start": "2001-10-26",
+      "lease_end": "2024-10-25",
+      "rent_market": 0.0,
+      "rent_charge": 432.0,
+      "rent_gov_subsidy": 313.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 745.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 36,
+      "unit_num": "604   309",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "HALL, MAKENZIE",
+      "move_in": "2023-12-06",
+      "lease_start": "2023-12-06",
+      "lease_end": "2024-12-05",
+      "rent_market": 0.0,
+      "rent_charge": 0.0,
+      "rent_gov_subsidy": 750.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 750.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "row_index": 37,
+      "unit_num": "604   310",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "CARVER, VERONICA",
+      "move_in": "2021-04-19",
+      "lease_start": "2021-04-19",
+      "lease_end": "2024-04-18",
+      "rent_market": 0.0,
+      "rent_charge": 730.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 730.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 25
+        }
+      ]
+    },
+    {
+      "row_index": 38,
+      "unit_num": "604   311",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "ANTOINE, JEFF",
+      "move_in": "2022-03-07",
+      "lease_start": "2022-03-07",
+      "lease_end": "2024-03-06",
+      "rent_market": 0.0,
+      "rent_charge": 730.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 730.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 39,
+      "unit_num": "604   312",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "VAC",
+      "tenant": "<<<Vacant-Assigned>>>",
+      "move_in": null,
+      "lease_start": null,
+      "lease_end": null,
+      "rent_market": 0.0,
+      "rent_charge": 0.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 0.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 40,
+      "unit_num": "604   313",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "BROWN, TIFFANY",
+      "move_in": "2016-11-23",
+      "lease_start": "2016-11-23",
+      "lease_end": "2024-11-22",
+      "rent_market": 0.0,
+      "rent_charge": 419.0,
+      "rent_gov_subsidy": 326.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 745.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 41,
+      "unit_num": "604   314",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "DOUTHIT, BRANDI",
+      "move_in": "2022-04-13",
+      "lease_start": "2022-04-13",
+      "lease_end": "2024-04-12",
+      "rent_market": 0.0,
+      "rent_charge": 730.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 730.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "row_index": 42,
+      "unit_num": "604   315",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "KUHS, MEGAN",
+      "move_in": "2019-05-07",
+      "lease_start": "2019-05-07",
+      "lease_end": "2024-05-06",
+      "rent_market": 0.0,
+      "rent_charge": 730.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 730.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 25
+        }
+      ]
+    },
+    {
+      "row_index": 43,
+      "unit_num": "604   316",
+      "unit_type": "2/1-777",
+      "sqft": 777.0,
+      "br": 2.0,
+      "bath": 1.0,
+      "occupancy": "OCC",
+      "tenant": "UNDERHILL, AMANDA",
+      "move_in": "2023-01-06",
+      "lease_start": "2023-01-06",
+      "lease_end": "2025-01-05",
+      "rent_market": 0.0,
+      "rent_charge": 775.0,
+      "rent_gov_subsidy": 0.0,
+      "is_mtm": false,
+      "mtm_charge": 0.0,
+      "total_charge": 775.0,
+      "charge_code_bd": [
+        {
+          "code": "Other Charges",
+          "type": "other_codes",
+          "amount": 0
+        }
+      ]
+    }
+  ],
+  "pg_info": {
+    "n_rows": 40,
+    "pg_idx": 1,
+    "pg_size": 10000,
+    "n_pages": 1
+  }
+}

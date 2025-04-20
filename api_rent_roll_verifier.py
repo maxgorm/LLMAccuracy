@@ -10,8 +10,8 @@ import pdfplumber
 import tabula
 
 # --- Configuration ---
-API_BASE_URL = "https://demo.quickdata.ai/api/v1"  # Replace with the actual API base URL
-API_KEY = None  # Set to None initially, will prompt user if needed
+API_BASE_URL = "https://demo.quickdata.ai/api/v1"
+API_KEY = "aEWEppF5Edt5Ffl3kMUOssW4VLrsIwnfGiPj3VDclMQN2DGeIPGXBWX4DKJbJ08CMO46CY6i5LmSg3K328o0AfXioytWYupCAOUIofEPSkDUjZwL3VQamLr4wBjilyWq"
 
 # Fields to compare (same as in rent_roll_verifier.py)
 FIELDS_TO_COMPARE = [
@@ -44,7 +44,7 @@ def submit_job(file_path, doc_type="rent_roll", sheet_name=""):
     # Prepare headers with API key if available
     headers = {}
     if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
+        headers["X-API-Key"] = API_KEY
     
     # Determine file type and set appropriate content type
     file_ext = os.path.splitext(file_path)[1].lower()
@@ -98,7 +98,7 @@ def fetch_job_results(job_id, max_retries=10, retry_delay=5):
     # Prepare headers with API key if available
     headers = {}
     if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
+        headers["X-API-Key"] = API_KEY
     
     retries = 0
     while retries < max_retries:
