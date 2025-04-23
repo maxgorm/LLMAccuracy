@@ -35,7 +35,7 @@ def check_api_key():
             print("No API key provided. Proceeding without authentication.")
             print("Note: The API may reject requests without proper authentication.")
 
-def submit_job(file_path, doc_type="rent_roll", sheet_name=""):
+def submit_job(file_path, doc_type="rent_roll", sheet_name="", bypass_rb=False):
     """Submit a new job to the API."""
     check_api_key()
     
@@ -62,7 +62,8 @@ def submit_job(file_path, doc_type="rent_roll", sheet_name=""):
     
     data = {
         'doc_type': doc_type,
-        'sheet_name': sheet_name if file_ext != '.pdf' else ''  # Sheet name only applies to Excel files
+        'sheet_name': sheet_name if file_ext != '.pdf' else '',  # Sheet name only applies to Excel files
+        'bypass_rb': bypass_rb  # Add bypass_rb parameter to bypass rules-based approach and always use LLMs
     }
     
     try:
@@ -353,13 +354,13 @@ def compare_data(api_output, verified_file_path):
 
 # --- Main Execution Logic ---
 
-def process_single_file(raw_file, verified_file, output_diff_file=None):
+def process_single_file(raw_file, verified_file, output_diff_file=None, bypass_rb=False):
     """Process a single rent roll file and its verified counterpart using the API."""
     print(f"Processing raw file: {raw_file}")
     print(f"Comparing against verified file: {verified_file}")
 
     # Step 1: Submit the job to the API
-    job_id = submit_job(raw_file)
+    job_id = submit_job(raw_file, bypass_rb=bypass_rb)
     if not job_id:
         print(f"Failed to submit job to API for {raw_file}. Exiting.")
         return None, None, None
@@ -447,7 +448,7 @@ def match_files(raw_files, verified_files):
     
     return matched_pairs
 
-def main(raw_files, verified_files, output_diff_dir=None):
+def main(raw_files, verified_files, output_diff_dir=None, bypass_rb=False):
     """Main function to run the verification process for multiple files."""
     
     # Validate inputs
@@ -496,7 +497,8 @@ def main(raw_files, verified_files, output_diff_dir=None):
         accuracy, diffs, merged_df = process_single_file(
             raw_file, 
             verified_file, 
-            output_diff_file
+            output_diff_file,
+            bypass_rb
         )
         
         if accuracy is not None:
@@ -545,6 +547,12 @@ def run_streamlit_app():
             setattr(current_module, 'API_BASE_URL', api_base_url)
             setattr(current_module, 'API_KEY', api_key if api_key else None)
             st.success("API configuration saved!")
+    
+    # Processing options
+    with st.expander("Processing Options"):
+        bypass_rb = st.checkbox("Bypass Rules-Based Approach", value=False, 
+                               help="When checked, the API will always use LLMs instead of the rules-based approach")
+        st.info("Bypassing the rules-based approach will use LLMs for all processing, which may be more accurate but slower.")
 
     uploaded_raw_file = st.file_uploader("1. Upload Raw Rent Roll (.xlsx)", type="xlsx")
     uploaded_verified_file = st.file_uploader("2. Upload Verified Rent Roll (.xlsx)", type="xlsx")
@@ -566,7 +574,7 @@ def run_streamlit_app():
             with st.spinner("Processing files and querying API... This may take a minute."):
                 # Submit job to API
                 st.write("Submitting job to API...")
-                job_id = submit_job(raw_temp_path)
+                job_id = submit_job(raw_temp_path, bypass_rb=bypass_rb)
                 
                 if not job_id:
                     st.error("Failed to submit job to API.")
@@ -680,19 +688,22 @@ if __name__ == "__main__":
             raw_files = sys.argv[1].split(',')
             verified_files = sys.argv[2].split(',') if len(sys.argv) > 2 else ["Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"]
             output_diff_dir = sys.argv[3] if len(sys.argv) > 3 else "api_comparison_diffs"
+            bypass_rb = sys.argv[4].lower() == "true" if len(sys.argv) > 4 else False
             
             print(f"Using command-line arguments:")
             print(f"Raw files: {raw_files}")
             print(f"Verified files: {verified_files}")
             print(f"Output diff directory: {output_diff_dir}")
+            print(f"Bypass rules-based approach: {bypass_rb}")
             
-            main(raw_files, verified_files, output_diff_dir)
+            main(raw_files, verified_files, output_diff_dir, bypass_rb)
         else:
             # Use the provided sample files
             RAW_RENT_ROLL_FILES = ["Saddlebrook I RR 02-23-24.xlsx"]
             VERIFIED_RENT_ROLL_FILES = ["Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"]
             OUTPUT_DIFF_DIR = "api_comparison_diffs"  # Optional: Set to None to disable saving diffs
+            BYPASS_RB = False  # Default to using rules-based approach
             
-            main(RAW_RENT_ROLL_FILES, VERIFIED_RENT_ROLL_FILES, OUTPUT_DIFF_DIR)
+            main(RAW_RENT_ROLL_FILES, VERIFIED_RENT_ROLL_FILES, OUTPUT_DIFF_DIR, BYPASS_RB)
 
 # End of script

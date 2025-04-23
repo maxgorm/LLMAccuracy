@@ -38,6 +38,12 @@ def run_streamlit_app():
             api_rent_roll_verifier.API_BASE_URL = api_base_url
             api_rent_roll_verifier.API_KEY = api_key if api_key else None
             st.success("API configuration saved!")
+    
+    # Processing options
+    with st.expander("Processing Options"):
+        bypass_rb = st.checkbox("Bypass Rules-Based Approach", value=False, 
+                               help="When checked, the API will always use LLMs instead of the rules-based approach")
+        st.info("Bypassing the rules-based approach will use LLMs for all processing, which may be more accurate but slower.")
 
     # Create two columns for file uploads
     col1, col2 = st.columns(2)
@@ -142,7 +148,7 @@ def run_streamlit_app():
                             try:
                                 # Step 1: Submit the job to the API
                                 st.write(f"Submitting {file_name} to API...")
-                                job_id = submit_job(raw_file, doc_type="rent_roll", sheet_name=sheet_name)
+                                job_id = submit_job(raw_file, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=bypass_rb)
                                 
                                 if not job_id:
                                     st.error(f"Failed to submit job to API for {file_name}.")
