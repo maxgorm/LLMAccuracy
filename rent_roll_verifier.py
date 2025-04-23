@@ -17,7 +17,8 @@ carefully before providing the output. 1. Rent Roll Extract: - The rent roll ext
 larger document. So it could cut off certain unit information. - 'NULL' is used to signify blank cells in the RR. Do not include NULL in your outputs because they 
 are just blank cells. 2. Column Header Identification: - Carefully examine the first few rows of the data grid to identify the actual column headers. - Be aware 
 that column headers may span multiple rows. Combine multi-row headers into a single string, separating parts with a space. - Only include headers that are explicitly 
-present in the data grid. Do not infer or add headers that are not there. """
+present in the data grid. Do not infer or add headers that are not there. Treat a rent roll category as market rent only if the category name contains the word 'market'. 
+Otherwise, it is not market rent. """
 
 PROMPT_PART_2_GEMINI = """ 3. Data Extraction and Processing: - Identify Unit Blocks: - Recognize that information for a single unit may span multiple rows. - 
 The first row of a unit block typically contains the unit identifier (e.g., unit number or letter) and primary lease information. - Subsequent rows without a unit 
@@ -648,7 +649,7 @@ def main(raw_file, verified_file, output_diff_file=None):
 
     # Step 2b: Query Gemini
     print("Querying Gemini (Step 2b)...")
-    gemini_model = "gemini-2.5-flash-preview-04-17" # Using gemini-2.5-pro-exp-03-25 as requested
+    gemini_model = "gemini-2.5-pro-exp-03-25" # Using gemini-2.5-pro-exp-03-25 as requested
     # Gemini prompt uses the original rr_string according to its content
     gemini_prompt = PROMPT_PART_2_GEMINI + rr_string
     gemini_json_output = query_llm(portkey, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
@@ -740,7 +741,7 @@ def run_streamlit_app():
 
                         # Query Gemini
                         st.write("Querying Gemini...")
-                        gemini_model = "gemini-2.5-flash-preview-04-17"
+                        gemini_model = "gemini-2.5-pro-exp-03-25"
                         gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
                         gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 

@@ -60,7 +60,7 @@ def run_streamlit_app():
 
                         # Query Gemini for first part (previously Claude)
                         st.write("Querying Gemini for first part...")
-                        claude_model = "gemini-2.5-flash-preview-04-17"
+                        claude_model = "gemini-2.5-pro-exp-03-25"
                         claude_prompt = PROMPT_PART_1_CLAUDE + rr_string_st
                         claude_response_text = query_llm(portkey_st, claude_prompt, GEMINI_VIRTUAL_KEY, claude_model, "google")
                         
@@ -71,7 +71,7 @@ def run_streamlit_app():
 
                         # Query Gemini for second part
                         st.write("Querying Gemini for second part...")
-                        gemini_model = "gemini-2.5-flash-preview-04-17"
+                        gemini_model = "gemini-2.5-pro-exp-03-25"
                         gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
                         gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 
