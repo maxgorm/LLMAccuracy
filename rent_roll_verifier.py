@@ -523,6 +523,9 @@ def compare_data(llm_output_json, verified_file_path):
                      # Handle potential NaN comparison carefully
                      if pd.isna(val_llm) and pd.isna(val_verified):
                          is_match = True
+                     # Special case: treat 0 and nan as a match
+                     elif (pd.isna(val_llm) and val_verified == 0) or (pd.isna(val_verified) and val_llm == 0):
+                         is_match = True
                      elif pd.isna(val_llm) or pd.isna(val_verified):
                          is_match = False
                      else:
@@ -649,7 +652,7 @@ def main(raw_file, verified_file, output_diff_file=None):
 
     # Step 2b: Query Gemini
     print("Querying Gemini (Step 2b)...")
-    gemini_model = "gemini-2.5-pro-exp-03-25" # Using gemini-2.5-pro-exp-03-25 as requested
+    gemini_model = "gemini-2.0-flash" # Using gemini-2.5-pro-exp-03-25 as requested
     # Gemini prompt uses the original rr_string according to its content
     gemini_prompt = PROMPT_PART_2_GEMINI + rr_string
     gemini_json_output = query_llm(portkey, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")

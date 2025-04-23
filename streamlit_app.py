@@ -71,7 +71,7 @@ def run_streamlit_app():
 
                         # Query Gemini for second part
                         st.write("Querying Gemini for second part...")
-                        gemini_model = "gemini-2.5-pro-exp-03-25"
+                        gemini_model = "gemini-2.0-flash"
                         gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
                         gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 

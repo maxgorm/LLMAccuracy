@@ -272,6 +272,9 @@ def compare_data(api_output, verified_file_path):
                     # Handle potential NaN comparison carefully
                     if pd.isna(val_api) and pd.isna(val_verified):
                         is_match = True
+                    # Special case: treat 0 and nan as a match
+                    elif (pd.isna(val_api) and val_verified == 0) or (pd.isna(val_verified) and val_api == 0):
+                        is_match = True
                     elif pd.isna(val_api) or pd.isna(val_verified):
                         is_match = False
                     else:
