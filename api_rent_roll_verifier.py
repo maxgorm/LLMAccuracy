@@ -353,37 +353,36 @@ def compare_data(api_output, verified_file_path):
 
 # --- Main Execution Logic ---
 
-def main(raw_file, verified_file, output_diff_file=None):
-    """Main function to run the verification process."""
-
+def process_single_file(raw_file, verified_file, output_diff_file=None):
+    """Process a single rent roll file and its verified counterpart using the API."""
     print(f"Processing raw file: {raw_file}")
     print(f"Comparing against verified file: {verified_file}")
 
     # Step 1: Submit the job to the API
     job_id = submit_job(raw_file)
     if not job_id:
-        print("Failed to submit job to API. Exiting.")
-        return
+        print(f"Failed to submit job to API for {raw_file}. Exiting.")
+        return None, None, None
 
     # Step 2: Fetch the job results
     print(f"\nFetching results for job ID: {job_id}...")
     api_output = fetch_job_results(job_id)
     
     if not api_output:
-        print("Failed to fetch job results from API. Exiting.")
-        return
+        print(f"Failed to fetch job results from API for {raw_file}. Exiting.")
+        return None, None, None
 
     # Save intermediate API output for inspection
-    api_output_filename = "api_output.json"
+    api_output_filename = f"api_output_{os.path.basename(raw_file)}.json"
     try:
         with open(api_output_filename, 'w') as f:
             json.dump(api_output, f, indent=2)
         print(f"\nSaved API output to {api_output_filename}")
     except Exception as e:
-        print(f"Warning: Could not save API output JSON: {e}")
+        print(f"Warning: Could not save API output JSON for {raw_file}: {e}")
 
     # Step 3: Compare API output with Verified Data
-    print("\nComparing API output with verified data...")
+    print(f"\nComparing API output with verified data for {raw_file}...")
     accuracy, diffs, merged_df = compare_data(api_output, verified_file)
 
     if accuracy is not None and diffs is not None and output_diff_file:
@@ -391,19 +390,138 @@ def main(raw_file, verified_file, output_diff_file=None):
         try:
             # Save detailed differences
             diff_output = {
+                "raw_file": raw_file,
+                "verified_file": verified_file,
                 "accuracy_percent": accuracy,
                 "field_mismatches": diffs,
-                # Optionally include unmatched rows if needed
-                # "unmatched_api_rows": merged_df[merged_df['_merge'] == 'left_only'].to_dict('records'),
-                # "unmatched_verified_rows": merged_df[merged_df['_merge'] == 'right_only'].to_dict('records')
             }
             with open(output_diff_file, 'w') as f:
                 json.dump(diff_output, f, indent=2, default=str)  # Use default=str for non-serializable types like NaT
-            print("Differences saved.")
+            print(f"Differences saved for {raw_file}.")
         except Exception as e:
-            print(f"Error saving differences JSON: {e}")
+            print(f"Error saving differences JSON for {raw_file}: {e}")
 
-    print("\nVerification process complete.")
+    print(f"\nVerification process complete for {raw_file}.")
+    return accuracy, diffs, merged_df
+
+def match_files(raw_files, verified_files):
+    """Match raw rent roll files with their corresponding verified files based on filename similarity."""
+    if len(raw_files) != len(verified_files):
+        print(f"Error: Number of raw files ({len(raw_files)}) does not match number of verified files ({len(verified_files)})")
+        return None
+    
+    matched_pairs = []
+    
+    # Extract base names without extensions for matching
+    raw_base_names = [os.path.splitext(os.path.basename(f))[0] for f in raw_files]
+    verified_base_names = [os.path.splitext(os.path.basename(f))[0].replace(" Verified", "") for f in verified_files]
+    
+    # For each raw file, find the best matching verified file
+    for i, raw_file in enumerate(raw_files):
+        raw_base = raw_base_names[i]
+        
+        # Find the verified file with the most similar name
+        best_match_idx = -1
+        best_match_score = -1
+        
+        for j, verified_base in enumerate(verified_base_names):
+            # Simple similarity score: length of common prefix
+            # This works well for files that differ only by a suffix like "(1)" or numbers at the end
+            common_prefix_len = 0
+            for a, b in zip(raw_base, verified_base):
+                if a == b:
+                    common_prefix_len += 1
+                else:
+                    break
+            
+            # If this is a better match than what we've seen so far
+            if common_prefix_len > best_match_score:
+                best_match_score = common_prefix_len
+                best_match_idx = j
+        
+        if best_match_idx >= 0:
+            matched_pairs.append((raw_file, verified_files[best_match_idx]))
+            # Remove the matched verified file to prevent duplicate matches
+            verified_files.pop(best_match_idx)
+            verified_base_names.pop(best_match_idx)
+    
+    return matched_pairs
+
+def main(raw_files, verified_files, output_diff_dir=None):
+    """Main function to run the verification process for multiple files."""
+    
+    # Validate inputs
+    if not raw_files or not verified_files:
+        print("Error: No files provided")
+        return
+    
+    # Convert to lists if single strings were provided
+    if isinstance(raw_files, str):
+        raw_files = [raw_files]
+    if isinstance(verified_files, str):
+        verified_files = [verified_files]
+    
+    # Check if the number of files match
+    if len(raw_files) != len(verified_files):
+        print(f"Error: Number of raw files ({len(raw_files)}) does not match number of verified files ({len(verified_files)})")
+        print("Please ensure there is one verified file for each raw file.")
+        return
+    
+    # Match raw files with their corresponding verified files
+    file_pairs = match_files(raw_files, verified_files.copy())
+    if not file_pairs:
+        print("Error: Failed to match files")
+        return
+    
+    # Print matched pairs for verification
+    print("\nMatched file pairs:")
+    for raw, verified in file_pairs:
+        print(f"  {os.path.basename(raw)} -> {os.path.basename(verified)}")
+    
+    # Create output directory if needed
+    if output_diff_dir:
+        os.makedirs(output_diff_dir, exist_ok=True)
+    
+    # Process each file pair
+    results = []
+    for i, (raw_file, verified_file) in enumerate(file_pairs):
+        print(f"\n[{i+1}/{len(file_pairs)}] Processing file pair:")
+        
+        # Create output diff file path if directory was provided
+        output_diff_file = None
+        if output_diff_dir:
+            output_diff_file = os.path.join(output_diff_dir, f"api_comparison_diff_{os.path.basename(raw_file)}.json")
+        
+        # Process the file pair
+        accuracy, diffs, merged_df = process_single_file(
+            raw_file, 
+            verified_file, 
+            output_diff_file
+        )
+        
+        if accuracy is not None:
+            results.append({
+                "raw_file": raw_file,
+                "verified_file": verified_file,
+                "accuracy": accuracy,
+                "has_diffs": bool(diffs)
+            })
+    
+    # Print summary
+    print("\n=== Processing Summary ===")
+    print(f"Total file pairs processed: {len(file_pairs)}")
+    print(f"Successful comparisons: {len(results)}")
+    
+    if results:
+        avg_accuracy = sum(r["accuracy"] for r in results) / len(results)
+        print(f"Average accuracy across all files: {avg_accuracy:.2f}%")
+        
+        # Print individual file results
+        print("\nIndividual file results:")
+        for r in results:
+            print(f"  {os.path.basename(r['raw_file'])}: {r['accuracy']:.2f}% accuracy")
+    
+    print("\nVerification process complete for all files.")
 
 # --- Streamlit App ---
 def run_streamlit_app():
@@ -556,11 +674,25 @@ if __name__ == "__main__":
             print("Streamlit is not installed. Please install it with: pip install streamlit")
     else:
         # We're running as a regular Python script
-        # Use the provided sample files
-        RAW_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx"
-        VERIFIED_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"
-        OUTPUT_DIFF_JSON = "api_comparison_diff.json"  # Optional: Set to None to disable saving diffs
-        
-        main(RAW_RENT_ROLL_FILE, VERIFIED_RENT_ROLL_FILE, OUTPUT_DIFF_JSON)
+        # Check if command-line arguments are provided
+        if len(sys.argv) > 1:
+            # Use command-line arguments
+            raw_files = sys.argv[1].split(',')
+            verified_files = sys.argv[2].split(',') if len(sys.argv) > 2 else ["Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"]
+            output_diff_dir = sys.argv[3] if len(sys.argv) > 3 else "api_comparison_diffs"
+            
+            print(f"Using command-line arguments:")
+            print(f"Raw files: {raw_files}")
+            print(f"Verified files: {verified_files}")
+            print(f"Output diff directory: {output_diff_dir}")
+            
+            main(raw_files, verified_files, output_diff_dir)
+        else:
+            # Use the provided sample files
+            RAW_RENT_ROLL_FILES = ["Saddlebrook I RR 02-23-24.xlsx"]
+            VERIFIED_RENT_ROLL_FILES = ["Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"]
+            OUTPUT_DIFF_DIR = "api_comparison_diffs"  # Optional: Set to None to disable saving diffs
+            
+            main(RAW_RENT_ROLL_FILES, VERIFIED_RENT_ROLL_FILES, OUTPUT_DIFF_DIR)
 
 # End of script

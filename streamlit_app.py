@@ -4,12 +4,14 @@ import json
 import os
 import sys
 import traceback
+import tempfile
+import time
+import concurrent.futures
 
 # Import the main script functions but don't run the main function
 from rent_roll_verifier import (
-    extract_rent_roll_string,
-    query_llm,
-    compare_data,
+    process_single_file,
+    match_files,
     PROMPT_PART_1_CLAUDE,
     PROMPT_PART_2_GEMINI,
     PORTKEY_API_KEY,
@@ -24,155 +26,212 @@ def run_streamlit_app():
     st.set_page_config(layout="wide")
     st.title("Rent Roll LLM Verifier")
 
-    st.info("Upload the raw rent roll (.xlsx) and the verified version (.xlsx) to compare LLM parsing accuracy.")
+    st.info("Upload raw rent roll files (.xlsx or .pdf) and their corresponding verified versions (.xlsx) to compare LLM parsing accuracy.")
 
-    uploaded_raw_file = st.file_uploader("1. Upload Raw Rent Roll (.xlsx or .pdf)", type=["xlsx", "pdf"])
-    uploaded_verified_file = st.file_uploader("2. Upload Verified Rent Roll (.xlsx)", type="xlsx")
-
-    # Display file type information
-    if uploaded_raw_file is not None:
-        file_ext = os.path.splitext(uploaded_raw_file.name)[1].lower()
-        if file_ext == '.pdf':
-            st.info("PDF file detected. Data will be extracted from the PDF file.")
-
-    if uploaded_raw_file and uploaded_verified_file:
-        st.success("Files uploaded successfully!")
-
-        # Save temporary files to run the main logic
-        raw_temp_path = f"temp_{uploaded_raw_file.name}"
-        verified_temp_path = f"temp_{uploaded_verified_file.name}"
-        llm_output_filename = f"temp_llm_output_{uploaded_raw_file.name}.json"
-
-        with open(raw_temp_path, "wb") as f:
-            f.write(uploaded_raw_file.getbuffer())
-        with open(verified_temp_path, "wb") as f:
-            f.write(uploaded_verified_file.getbuffer())
-
-        if st.button("Run Verification"):
-            with st.spinner("Processing files and querying LLMs... This may take a minute."):
-                # --- Run the main logic within Streamlit context ---
-                rr_string_st = extract_rent_roll_string(raw_temp_path)
-                if not rr_string_st:
-                    st.error("Failed to read the raw rent roll file.")
+    # Create two columns for file uploads
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Raw Rent Roll Files")
+        uploaded_raw_files = st.file_uploader(
+            "Upload Raw Rent Roll Files (.xlsx or .pdf)", 
+            type=["xlsx", "pdf"],
+            accept_multiple_files=True
+        )
+    
+    with col2:
+        st.subheader("Verified Rent Roll Files")
+        uploaded_verified_files = st.file_uploader(
+            "Upload Verified Rent Roll Files (.xlsx)", 
+            type=["xlsx"],
+            accept_multiple_files=True
+        )
+    
+    # Display file counts
+    if uploaded_raw_files and uploaded_verified_files:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"Raw files uploaded: {len(uploaded_raw_files)}")
+            for file in uploaded_raw_files:
+                st.write(f"- {file.name}")
+        
+        with col2:
+            st.write(f"Verified files uploaded: {len(uploaded_verified_files)}")
+            for file in uploaded_verified_files:
+                st.write(f"- {file.name}")
+        
+        # Check if counts match
+        if len(uploaded_raw_files) != len(uploaded_verified_files):
+            st.error(f"Error: Number of raw files ({len(uploaded_raw_files)}) does not match number of verified files ({len(uploaded_verified_files)})")
+            st.warning("Please ensure there is one verified file for each raw file.")
+        else:
+            st.success(f"Files uploaded successfully! {len(uploaded_raw_files)} file pairs detected.")
+            
+            # Create a temporary directory to store files
+            temp_dir = tempfile.mkdtemp()
+            
+            # Save all uploaded files to the temp directory
+            raw_temp_paths = []
+            verified_temp_paths = []
+            
+            for raw_file in uploaded_raw_files:
+                file_path = os.path.join(temp_dir, raw_file.name)
+                with open(file_path, "wb") as f:
+                    f.write(raw_file.getbuffer())
+                raw_temp_paths.append(file_path)
+            
+            for verified_file in uploaded_verified_files:
+                file_path = os.path.join(temp_dir, verified_file.name)
+                with open(file_path, "wb") as f:
+                    f.write(verified_file.getbuffer())
+                verified_temp_paths.append(file_path)
+            
+            # Create output directory for results
+            output_dir = os.path.join(temp_dir, "results")
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Match files based on name similarity
+            if st.button("Run Verification"):
+                # Match files
+                file_pairs = match_files(raw_temp_paths, verified_temp_paths.copy())
+                
+                if not file_pairs:
+                    st.error("Failed to match files. Please check file names.")
                 else:
+                    # Display matched pairs
+                    st.subheader("Matched File Pairs")
+                    for raw, verified in file_pairs:
+                        st.write(f"- {os.path.basename(raw)} → {os.path.basename(verified)}")
+                    
+                    # Initialize Portkey client once for all files
                     try:
-                        portkey_st = Portkey(api_key=PORTKEY_API_KEY)
-
-                        # Query Gemini for first part (previously Claude)
-                        st.write("Querying Gemini for first part...")
-                        claude_model = "gemini-2.5-pro-exp-03-25"
-                        claude_prompt = PROMPT_PART_1_CLAUDE + rr_string_st
-                        claude_response_text = query_llm(portkey_st, claude_prompt, GEMINI_VIRTUAL_KEY, claude_model, "google")
+                        portkey = Portkey(api_key=PORTKEY_API_KEY)
                         
-                        if claude_response_text is not None and isinstance(claude_response_text, str) and claude_response_text:
-                            st.write("Gemini first part query successful.")
-                        else:
-                            st.warning("Gemini first part query returned empty or invalid response. Proceeding with second Gemini query only.")
-
-                        # Query Gemini for second part
-                        st.write("Querying Gemini for second part...")
-                        gemini_model = "gemini-2.0-flash"
-                        gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
-                        gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
-
-                        if not gemini_json_output_st:
-                            st.error("Failed to get valid JSON output from Gemini.")
-                        else:
-                            st.write("Gemini query successful. Comparing data...")
+                        # Process files with progress tracking
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        # Create a placeholder for results
+                        results_container = st.container()
+                        
+                        # Process each file pair sequentially
+                        results = []
+                        for i, (raw_file, verified_file) in enumerate(file_pairs):
+                            file_name = os.path.basename(raw_file)
+                            status_text.text(f"Processing file {i+1}/{len(file_pairs)}: {file_name}")
+                            progress_bar.progress((i) / len(file_pairs))
                             
-                            # Save LLM output for reference
-                            with open(llm_output_filename, 'w') as f:
-                                json.dump(gemini_json_output_st, f, indent=2)
+                            # Create output diff file path
+                            output_diff_file = os.path.join(output_dir, f"comparison_diff_{file_name}.json")
                             
-                            # Compare
-                            accuracy_st, diffs_st, merged_df_st = compare_data(gemini_json_output_st, verified_temp_path)
-
-                            if accuracy_st is not None:
-                                st.subheader("Verification Results")
-                                st.metric("Overall Accuracy", f"{accuracy_st:.2f}%")
-
-                                # Calculate per-field accuracy for display
-                                if diffs_st:
-                                    field_stats = {}
-                                    for field in FIELDS_TO_COMPARE:
-                                        field_total = len(merged_df_st[merged_df_st['_merge'] == 'both'])
-                                        field_mismatches = len(diffs_st.get(field, []))
-                                        field_correct = field_total - field_mismatches
-                                        field_accuracy = round(100 * field_correct / field_total, 2) if field_total > 0 else 0
-                                        field_stats[field] = {
-                                            "accuracy": field_accuracy,
-                                            "mismatches": field_mismatches,
-                                            "total": field_total
-                                        }
-                                    
-                                    # Display per-field accuracy
-                                    st.subheader("Per-Field Accuracy")
-                                    field_df = pd.DataFrame({
-                                        "Field": [field for field in field_stats.keys()],
-                                        "Accuracy (%)": [stats["accuracy"] for stats in field_stats.values()],
-                                        "Mismatches": [stats["mismatches"] for stats in field_stats.values()],
-                                        "Total": [stats["total"] for stats in field_stats.values()]
-                                    })
-                                    field_df = field_df.sort_values("Accuracy (%)")
-                                    st.dataframe(field_df)
-                                    
-                                    # Display mismatch examples
-                                    st.subheader("Field Mismatches (Examples)")
-                                    for field, mismatches in diffs_st.items():
-                                        if mismatches:
-                                            with st.expander(f"{field}: {len(mismatches)} mismatches"):
-                                                for i, mismatch in enumerate(mismatches[:5]):
-                                                    st.write(f"**Key:** {mismatch['key']}")
-                                                    st.write(f"**LLM:** '{mismatch['llm_value']}', **Verified:** '{mismatch['verified_value']}'")
-                                                if len(mismatches) > 5:
-                                                    st.write(f"... and {len(mismatches) - 5} more mismatches")
-                                
-                                # Provide download for full diff details
-                                diff_output_st = {
-                                    "accuracy_percent": accuracy_st,
-                                    "field_mismatches": diffs_st
-                                }
-                                st.download_button(
-                                    label="Download Mismatch Details (JSON)",
-                                    data=json.dumps(diff_output_st, indent=2, default=str),
-                                    file_name="llm_comparison_diffs.json",
-                                    mime="application/json",
+                            # Process the file pair
+                            with st.spinner(f"Processing {file_name}..."):
+                                accuracy, diffs, merged_df = process_single_file(
+                                    raw_file, 
+                                    verified_file, 
+                                    output_diff_file,
+                                    portkey
                                 )
-
-                                # Display side-by-side comparison (optional, can be large)
-                                if merged_df_st is not None and st.checkbox("Show Detailed Comparison Table"):
-                                    st.dataframe(merged_df_st)
-
-                            else:
-                                st.error("Comparison failed. Check logs or input files.")
-
+                            
+                            if accuracy is not None:
+                                results.append({
+                                    "raw_file": raw_file,
+                                    "verified_file": verified_file,
+                                    "accuracy": accuracy,
+                                    "diffs": diffs,
+                                    "merged_df": merged_df
+                                })
+                            
+                            # Update progress
+                            progress_bar.progress((i + 1) / len(file_pairs))
+                        
+                        # Complete progress bar
+                        progress_bar.progress(1.0)
+                        status_text.text("Processing complete!")
+                        
+                        # Display results
+                        if results:
+                            with results_container:
+                                st.subheader("Verification Results")
+                                
+                                # Calculate average accuracy
+                                avg_accuracy = sum(r["accuracy"] for r in results) / len(results)
+                                st.metric("Average Accuracy Across All Files", f"{avg_accuracy:.2f}%")
+                                
+                                # Create tabs for each file
+                                tabs = st.tabs([os.path.basename(r["raw_file"]) for r in results])
+                                
+                                for i, (tab, result) in enumerate(zip(tabs, results)):
+                                    with tab:
+                                        st.metric("File Accuracy", f"{result['accuracy']:.2f}%")
+                                        
+                                        # Calculate per-field accuracy for this file
+                                        if result["diffs"]:
+                                            field_stats = {}
+                                            for field in FIELDS_TO_COMPARE:
+                                                field_total = len(result["merged_df"][result["merged_df"]['_merge'] == 'both'])
+                                                field_mismatches = len(result["diffs"].get(field, []))
+                                                field_correct = field_total - field_mismatches
+                                                field_accuracy = round(100 * field_correct / field_total, 2) if field_total > 0 else 0
+                                                field_stats[field] = {
+                                                    "accuracy": field_accuracy,
+                                                    "mismatches": field_mismatches,
+                                                    "total": field_total
+                                                }
+                                            
+                                            # Display per-field accuracy
+                                            st.subheader("Per-Field Accuracy")
+                                            field_df = pd.DataFrame({
+                                                "Field": [field for field in field_stats.keys()],
+                                                "Accuracy (%)": [stats["accuracy"] for stats in field_stats.values()],
+                                                "Mismatches": [stats["mismatches"] for stats in field_stats.values()],
+                                                "Total": [stats["total"] for stats in field_stats.values()]
+                                            })
+                                            field_df = field_df.sort_values("Accuracy (%)")
+                                            st.dataframe(field_df)
+                                            
+                                            # Display mismatch examples
+                                            st.subheader("Field Mismatches (Examples)")
+                                            for field, mismatches in result["diffs"].items():
+                                                if mismatches:
+                                                    with st.expander(f"{field}: {len(mismatches)} mismatches"):
+                                                        for i, mismatch in enumerate(mismatches[:5]):
+                                                            st.write(f"**Key:** {mismatch['key']}")
+                                                            st.write(f"**LLM:** '{mismatch['llm_value']}', **Verified:** '{mismatch['verified_value']}'")
+                                                        if len(mismatches) > 5:
+                                                            st.write(f"... and {len(mismatches) - 5} more mismatches")
+                                        
+                                        # Provide download for full diff details
+                                        diff_output = {
+                                            "raw_file": os.path.basename(result["raw_file"]),
+                                            "verified_file": os.path.basename(result["verified_file"]),
+                                            "accuracy_percent": result["accuracy"],
+                                            "field_mismatches": result["diffs"]
+                                        }
+                                        st.download_button(
+                                            label="Download Mismatch Details (JSON)",
+                                            data=json.dumps(diff_output, indent=2, default=str),
+                                            file_name=f"comparison_diff_{os.path.basename(result['raw_file'])}.json",
+                                            mime="application/json",
+                                            key=f"download_{i}"
+                                        )
+                                        
+                                        # Display side-by-side comparison (optional, can be large)
+                                        if result["merged_df"] is not None and st.checkbox("Show Detailed Comparison Table", key=f"show_table_{i}"):
+                                            st.dataframe(result["merged_df"])
+                        else:
+                            st.error("No successful comparisons were completed. Check the logs for errors.")
+                    
                     except Exception as e:
                         st.error(f"An error occurred during verification: {e}")
                         st.text(traceback.format_exc())
-
-            # Clean up temp files
-            try:
-                # Only try to remove files that exist
-                if os.path.exists(raw_temp_path):
-                    os.remove(raw_temp_path)
-                if os.path.exists(verified_temp_path):
-                    os.remove(verified_temp_path)
-                if os.path.exists(llm_output_filename):
-                    os.remove(llm_output_filename)
                 
-                # Also clean up any debug files that might have been created
-                debug_files = [
-                    "raw_google_response.txt",
-                    "fixed_json.txt",
-                    "fixed_json_aggressive.txt",
-                    "error_google_response.txt"
-                ]
-                for file in debug_files:
-                    if os.path.exists(file):
-                        os.remove(file)
-                        
-            except OSError as e:
-                st.warning(f"Could not remove some temporary files: {e}")
+                # Clean up temp files
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except OSError as e:
+                    st.warning(f"Could not remove temporary files: {e}")
 
 if __name__ == "__main__":
     run_streamlit_app()

@@ -606,73 +606,59 @@ def compare_data(llm_output_json, verified_file_path):
 
 # --- Main Execution Logic ---
 
-def main(raw_file, verified_file, output_diff_file=None):
-    """Main function to run the verification process."""
-
+def process_single_file(raw_file, verified_file, output_diff_file=None, portkey=None):
+    """Process a single rent roll file and its verified counterpart."""
     print(f"Processing raw file: {raw_file}")
     print(f"Comparing against verified file: {verified_file}")
 
     # Step 1: Extract Rent Roll String
     rr_string = extract_rent_roll_string(raw_file)
     if not rr_string:
-        return # Error handled in function
+        print(f"Error: Failed to extract data from {raw_file}")
+        return None, None, None
 
-    # Initialize Portkey Client
-    # Assumes API key is handled by Portkey client (e.g., via env var or direct init)
-    try:
-        # Pass the key directly if needed, or rely on environment variables
-        portkey = Portkey(api_key=PORTKEY_API_KEY)
-    except Exception as e:
-        print(f"Error initializing Portkey client: {e}")
-        return
+    # Initialize Portkey Client if not provided
+    if portkey is None:
+        try:
+            portkey = Portkey(api_key=PORTKEY_API_KEY)
+        except Exception as e:
+            print(f"Error initializing Portkey client: {e}")
+            return None, None, None
 
     # Step 2a: Query Gemini for first part (previously Claude)
-    print("\nQuerying Gemini for first part (Step 2a)...")
-    claude_model = "gemini-2.5-pro-exp-03-25" # Using Gemini as requested
+    print(f"\nQuerying Gemini for first part (Step 2a) for {raw_file}...")
+    claude_model = "gemini-2.5-flash-preview-04-17"
     claude_prompt = PROMPT_PART_1_CLAUDE + rr_string
-    # We call Gemini but don't use its direct output based on the second Gemini prompt's structure
     try:
-        # Store Gemini's response (now expected as raw text)
         claude_response_text = query_llm(portkey, claude_prompt, GEMINI_VIRTUAL_KEY, claude_model, "google")
-        if claude_response_text is not None:
-             # Check if it's a string and not empty
-            if isinstance(claude_response_text, str) and claude_response_text:
-                print("Claude query successful (returned text, not directly used in next step).")
-                # print("Claude Raw Text Response:\n", claude_response_text[:500] + "...") # Print snippet for debug
-            else:
-                 # Handle cases where query_llm might return None even for non-JSON providers on error
-                 print("Claude query executed but returned None or empty response.")
+        if claude_response_text is not None and isinstance(claude_response_text, str) and claude_response_text:
+            print(f"Claude query successful for {raw_file}")
         else:
-             print("Claude query failed or returned None.")
-            # Decide if this is a fatal error or if we can proceed to Gemini anyway
-            # For now, let's proceed to Gemini even if Claude fails, as Gemini uses the original rr_string
+            print(f"Claude query executed but returned None or empty response for {raw_file}")
     except Exception as e:
-        print(f"Error during Claude query: {e}. Proceeding to Gemini...")
-
+        print(f"Error during Claude query for {raw_file}: {e}. Proceeding to Gemini...")
 
     # Step 2b: Query Gemini
-    print("Querying Gemini (Step 2b)...")
-    gemini_model = "gemini-2.0-flash" # Using gemini-2.5-pro-exp-03-25 as requested
-    # Gemini prompt uses the original rr_string according to its content
+    print(f"Querying Gemini (Step 2b) for {raw_file}...")
+    gemini_model = "gemini-2.5-flash-preview-04-17"
     gemini_prompt = PROMPT_PART_2_GEMINI + rr_string
     gemini_json_output = query_llm(portkey, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 
     if not gemini_json_output:
-        print("Failed to get valid JSON output from Gemini. Aborting comparison.")
-        return
+        print(f"Failed to get valid JSON output from Gemini for {raw_file}. Aborting comparison.")
+        return None, None, None
 
     # Save intermediate LLM output for inspection
-    llm_output_filename = "llm_output.json"
+    llm_output_filename = f"llm_output_{os.path.basename(raw_file)}.json"
     try:
         with open(llm_output_filename, 'w') as f:
             json.dump(gemini_json_output, f, indent=2)
         print(f"\nSaved Gemini JSON output to {llm_output_filename}")
     except Exception as e:
-        print(f"Warning: Could not save LLM output JSON: {e}")
-
+        print(f"Warning: Could not save LLM output JSON for {raw_file}: {e}")
 
     # Step 3: Compare LLM output with Verified Data
-    print("\nComparing LLM output with verified data...")
+    print(f"\nComparing LLM output with verified data for {raw_file}...")
     accuracy, diffs, merged_df = compare_data(gemini_json_output, verified_file)
 
     if accuracy is not None and diffs is not None and output_diff_file:
@@ -680,19 +666,146 @@ def main(raw_file, verified_file, output_diff_file=None):
         try:
             # Save detailed differences
             diff_output = {
+                "raw_file": raw_file,
+                "verified_file": verified_file,
                 "accuracy_percent": accuracy,
                 "field_mismatches": diffs,
-                # Optionally include unmatched rows if needed
-                # "unmatched_llm_rows": merged_df[merged_df['_merge'] == 'left_only'].to_dict('records'),
-                # "unmatched_verified_rows": merged_df[merged_df['_merge'] == 'right_only'].to_dict('records')
             }
             with open(output_diff_file, 'w') as f:
-                json.dump(diff_output, f, indent=2, default=str) # Use default=str for non-serializable types like NaT
-            print("Differences saved.")
+                json.dump(diff_output, f, indent=2, default=str)
+            print(f"Differences saved for {raw_file}.")
         except Exception as e:
-            print(f"Error saving differences JSON: {e}")
+            print(f"Error saving differences JSON for {raw_file}: {e}")
 
-    print("\nVerification process complete.")
+    print(f"\nVerification process complete for {raw_file}.")
+    return accuracy, diffs, merged_df
+
+def match_files(raw_files, verified_files):
+    """Match raw rent roll files with their corresponding verified files based on filename similarity."""
+    if len(raw_files) != len(verified_files):
+        print(f"Error: Number of raw files ({len(raw_files)}) does not match number of verified files ({len(verified_files)})")
+        return None
+    
+    matched_pairs = []
+    
+    # Extract base names without extensions for matching
+    raw_base_names = [os.path.splitext(os.path.basename(f))[0] for f in raw_files]
+    verified_base_names = [os.path.splitext(os.path.basename(f))[0].replace(" Verified", "") for f in verified_files]
+    
+    # For each raw file, find the best matching verified file
+    for i, raw_file in enumerate(raw_files):
+        raw_base = raw_base_names[i]
+        
+        # Find the verified file with the most similar name
+        best_match_idx = -1
+        best_match_score = -1
+        
+        for j, verified_base in enumerate(verified_base_names):
+            # Simple similarity score: length of common prefix
+            # This works well for files that differ only by a suffix like "(1)" or numbers at the end
+            common_prefix_len = 0
+            for a, b in zip(raw_base, verified_base):
+                if a == b:
+                    common_prefix_len += 1
+                else:
+                    break
+            
+            # If this is a better match than what we've seen so far
+            if common_prefix_len > best_match_score:
+                best_match_score = common_prefix_len
+                best_match_idx = j
+        
+        if best_match_idx >= 0:
+            matched_pairs.append((raw_file, verified_files[best_match_idx]))
+            # Remove the matched verified file to prevent duplicate matches
+            verified_files.pop(best_match_idx)
+            verified_base_names.pop(best_match_idx)
+    
+    return matched_pairs
+
+def main(raw_files, verified_files, output_diff_dir=None):
+    """Main function to run the verification process for multiple files."""
+    
+    # Validate inputs
+    if not raw_files or not verified_files:
+        print("Error: No files provided")
+        return
+    
+    # Convert to lists if single strings were provided
+    if isinstance(raw_files, str):
+        raw_files = [raw_files]
+    if isinstance(verified_files, str):
+        verified_files = [verified_files]
+    
+    # Check if the number of files match
+    if len(raw_files) != len(verified_files):
+        print(f"Error: Number of raw files ({len(raw_files)}) does not match number of verified files ({len(verified_files)})")
+        print("Please ensure there is one verified file for each raw file.")
+        return
+    
+    # Match raw files with their corresponding verified files
+    file_pairs = match_files(raw_files, verified_files.copy())
+    if not file_pairs:
+        print("Error: Failed to match files")
+        return
+    
+    # Print matched pairs for verification
+    print("\nMatched file pairs:")
+    for raw, verified in file_pairs:
+        print(f"  {os.path.basename(raw)} -> {os.path.basename(verified)}")
+    
+    # Create output directory if needed
+    if output_diff_dir:
+        os.makedirs(output_diff_dir, exist_ok=True)
+    
+    # Initialize Portkey client once for all files
+    try:
+        portkey = Portkey(api_key=PORTKEY_API_KEY)
+    except Exception as e:
+        print(f"Error initializing Portkey client: {e}")
+        return
+    
+    # Process each file pair
+    results = []
+    for i, (raw_file, verified_file) in enumerate(file_pairs):
+        print(f"\n[{i+1}/{len(file_pairs)}] Processing file pair:")
+        
+        # Create output diff file path if directory was provided
+        output_diff_file = None
+        if output_diff_dir:
+            output_diff_file = os.path.join(output_diff_dir, f"comparison_diff_{os.path.basename(raw_file)}.json")
+        
+        # Process the file pair
+        accuracy, diffs, merged_df = process_single_file(
+            raw_file, 
+            verified_file, 
+            output_diff_file,
+            portkey
+        )
+        
+        if accuracy is not None:
+            results.append({
+                "raw_file": raw_file,
+                "verified_file": verified_file,
+                "accuracy": accuracy,
+                "has_diffs": bool(diffs)
+            })
+    
+    # Print summary
+    print("\n=== Processing Summary ===")
+    print(f"Total file pairs processed: {len(file_pairs)}")
+    print(f"Successful comparisons: {len(results)}")
+    
+    if results:
+        avg_accuracy = sum(r["accuracy"] for r in results) / len(results)
+        print(f"Average accuracy across all files: {avg_accuracy:.2f}%")
+        
+        # Print individual file results
+        print("\nIndividual file results:")
+        for r in results:
+            print(f"  {os.path.basename(r['raw_file'])}: {r['accuracy']:.2f}% accuracy")
+    
+    print("\nVerification process complete for all files.")
 
 
 # --- Streamlit App ---
@@ -744,7 +857,7 @@ def run_streamlit_app():
 
                         # Query Gemini
                         st.write("Querying Gemini...")
-                        gemini_model = "gemini-2.5-pro-exp-03-25"
+                        gemini_model = "gemini-2.5-flash-preview-04-17"
                         gemini_prompt = PROMPT_PART_2_GEMINI + rr_string_st
                         gemini_json_output_st = query_llm(portkey_st, gemini_prompt, GEMINI_VIRTUAL_KEY, gemini_model, "google")
 
@@ -864,22 +977,22 @@ if __name__ == "__main__":
         # Check if command-line arguments are provided
         if len(sys.argv) > 1:
             # Use command-line arguments
-            raw_file = sys.argv[1]
-            verified_file = sys.argv[2] if len(sys.argv) > 2 else "Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"
-            output_diff_file = sys.argv[3] if len(sys.argv) > 3 else "comparison_diff.json"
+            raw_files = sys.argv[1].split(',')
+            verified_files = sys.argv[2].split(',') if len(sys.argv) > 2 else ["Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"]
+            output_diff_dir = sys.argv[3] if len(sys.argv) > 3 else "comparison_diffs"
             
             print(f"Using command-line arguments:")
-            print(f"Raw file: {raw_file}")
-            print(f"Verified file: {verified_file}")
-            print(f"Output diff file: {output_diff_file}")
+            print(f"Raw files: {raw_files}")
+            print(f"Verified files: {verified_files}")
+            print(f"Output diff directory: {output_diff_dir}")
             
-            main(raw_file, verified_file, output_diff_file)
+            main(raw_files, verified_files, output_diff_dir)
         else:
             # Use the provided sample files
-            RAW_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx"
-            VERIFIED_RENT_ROLL_FILE = "Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"
-            OUTPUT_DIFF_JSON = "comparison_diff.json" # Optional: Set to None to disable saving diffs
+            RAW_RENT_ROLL_FILES = ["Saddlebrook I RR 02-23-24.xlsx"]
+            VERIFIED_RENT_ROLL_FILES = ["Saddlebrook I RR 02-23-24.xlsx Verified.xlsx"]
+            OUTPUT_DIFF_DIR = "comparison_diffs"  # Optional: Set to None to disable saving diffs
             
-            main(RAW_RENT_ROLL_FILE, VERIFIED_RENT_ROLL_FILE, OUTPUT_DIFF_JSON)
+            main(RAW_RENT_ROLL_FILES, VERIFIED_RENT_ROLL_FILES, OUTPUT_DIFF_DIR)
 
 # End of script
