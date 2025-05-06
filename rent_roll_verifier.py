@@ -459,33 +459,13 @@ def compare_data(llm_output_json, verified_file_path):
 
 
         # --- Construct Match Key ---
-        # Check if move_in dates are available in LLM output
-        has_move_in_dates = not df_llm['move_in'].isna().all() and not (df_llm['move_in'] == 'nan').all()
-        
-        if has_move_in_dates:
-            # Use normalized tenant name and move-in date using vectorized operations
-            print("Using tenant name and move-in date for matching...")
-            tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str)) # Get column or empty series
-            move_in_col_v = df_verified.get('move_in', pd.Series(dtype=str))
-            df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower() + "|" + \
-                                      move_in_col_v.fillna('').astype(str).str.strip().str.lower()
+        # Use unit_num as the match key instead of tenant
+        print("Using unit_num for matching...")
+        unit_col_v = df_verified.get('unit_num', pd.Series(dtype=str))  # Get column or empty series
+        df_verified['match_key'] = unit_col_v.fillna('').astype(str).str.strip().str.lower()
 
-            tenant_col_l = df_llm.get('tenant', pd.Series(dtype=str))
-            move_in_col_l = df_llm.get('move_in', pd.Series(dtype=str))
-            df_llm['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower() + "|" + \
-                                 move_in_col_l.fillna('').astype(str).str.strip().str.lower()
-        else:
-            # Use only tenant name for matching if move_in dates are not available
-            print("Move-in dates not available in LLM output. Using only tenant name for matching...")
-            tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str))
-            df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower()
-            
-            tenant_col_l = df_llm.get('tenant', pd.Series(dtype=str))
-            df_llm['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower()
-            
-            # Remove commas from tenant names for better matching
-            df_verified['match_key'] = df_verified['match_key'].str.replace(',', '')
-            df_llm['match_key'] = df_llm['match_key'].str.replace(',', '')
+        unit_col_l = df_llm.get('unit_num', pd.Series(dtype=str))
+        df_llm['match_key'] = unit_col_l.fillna('').astype(str).str.strip().str.lower()
 
         # --- Merge and Compare ---
         merged = df_llm.merge(df_verified, on="match_key", suffixes=("_llm", "_verified"), how="outer", indicator=True)

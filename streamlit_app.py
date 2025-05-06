@@ -196,7 +196,7 @@ def run_streamlit_app():
                                                 if mismatches:
                                                     with st.expander(f"{field}: {len(mismatches)} mismatches"):
                                                         for i, mismatch in enumerate(mismatches[:5]):
-                                                            st.write(f"**Key:** {mismatch['key']}")
+                                                            st.write(f"**Unit:** {mismatch['key']}")
                                                             st.write(f"**LLM:** '{mismatch['llm_value']}', **Verified:** '{mismatch['verified_value']}'")
                                                         if len(mismatches) > 5:
                                                             st.write(f"... and {len(mismatches) - 5} more mismatches")

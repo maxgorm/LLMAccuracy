@@ -162,8 +162,8 @@ def run_streamlit_app():
                                 file_status_text = st.empty()
                                 
                                 # Set up retry parameters
-                                max_retries = 10
-                                retry_delay = 5
+                                max_retries = 100
+                                retry_delay = 10
                                 
                                 # Implement retry logic with progress updates
                                 api_output = None
@@ -287,7 +287,7 @@ def run_streamlit_app():
                                             if mismatches:
                                                 with st.expander(f"{field}: {len(mismatches)} mismatches"):
                                                     for j, mismatch in enumerate(mismatches[:5]):
-                                                        st.write(f"**Key:** {mismatch['key']}")
+                                                        st.write(f"**Unit:** {mismatch['key']}")
                                                         st.write(f"**API:** '{mismatch['api_value']}', **Verified:** '{mismatch['verified_value']}'")
                                                     if len(mismatches) > 5:
                                                         st.write(f"... and {len(mismatches) - 5} more mismatches")

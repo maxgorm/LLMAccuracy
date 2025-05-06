@@ -25,3 +25,9 @@ Make it dynamic to work with all fields
 Ensure NaN and 0.0 output as correct instead of incorrect.
 Enable batch parallel processing.
 MCP server?
+
+Switch key from tenant to unit_num.
+
+
+
+Run 10 RRs through with bypass LLMs flag and give output .csv to Thejan

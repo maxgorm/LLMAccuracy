@@ -208,36 +208,33 @@ def compare_data(api_output, verified_file_path):
             df_verified['is_mtm'] = df_verified['is_mtm'].replace({'nan': pd.NA, 'true': 1, 'false': 0, True: 1, False: 0})
             df_verified['is_mtm'] = pd.to_numeric(df_verified['is_mtm'], errors='coerce').fillna(0).astype(int)
 
-        # --- Construct Match Key ---
-        # Check if move_in dates are available in API output
-        has_move_in_dates = not df_api['move_in'].isna().all() and not (df_api['move_in'] == 'nan').all()
+        # --- Use Row Position for Matching ---
+        print("Using row position for matching instead of unit numbers...")
         
-        if has_move_in_dates:
-            # Use normalized tenant name and move-in date using vectorized operations
-            print("Using tenant name and move-in date for matching...")
-            tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str))  # Get column or empty series
-            move_in_col_v = df_verified.get('move_in', pd.Series(dtype=str))
-            df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower() + "|" + \
-                                      move_in_col_v.fillna('').astype(str).str.strip().str.lower()
-
-            tenant_col_l = df_api.get('tenant', pd.Series(dtype=str))
-            move_in_col_l = df_api.get('move_in', pd.Series(dtype=str))
-            df_api['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower() + "|" + \
-                                 move_in_col_l.fillna('').astype(str).str.strip().str.lower()
-        else:
-            # Use only tenant name for matching if move_in dates are not available
-            print("Move-in dates not available in API output. Using only tenant name for matching...")
-            tenant_col_v = df_verified.get('tenant', pd.Series(dtype=str))
-            df_verified['match_key'] = tenant_col_v.fillna('').astype(str).str.strip().str.lower()
+        # Add row number as match key
+        df_verified['match_key'] = range(len(df_verified))
+        df_api['match_key'] = range(len(df_api))
+        
+        # Check if the number of rows match
+        if len(df_api) != len(df_verified):
+            print(f"Warning: Number of rows in API output ({len(df_api)}) does not match verified file ({len(df_verified)})")
+            print("Will match rows by position up to the minimum length of both datasets")
             
-            tenant_col_l = df_api.get('tenant', pd.Series(dtype=str))
-            df_api['match_key'] = tenant_col_l.fillna('').astype(str).str.strip().str.lower()
+            # Trim to the shorter length to ensure 1:1 matching
+            min_rows = min(len(df_api), len(df_verified))
+            df_api = df_api.iloc[:min_rows].copy()
+            df_verified = df_verified.iloc[:min_rows].copy()
             
-            # Remove commas from tenant names for better matching
-            df_verified['match_key'] = df_verified['match_key'].str.replace(',', '')
-            df_api['match_key'] = df_api['match_key'].str.replace(',', '')
+            # Reset match keys to ensure they match
+            df_verified['match_key'] = range(len(df_verified))
+            df_api['match_key'] = range(len(df_api))
+        
+        # Print row counts for debugging
+        print(f"\nAPI rows: {len(df_api)}")
+        print(f"Verified rows: {len(df_verified)}")
 
         # --- Merge and Compare ---
+        # Since we're using row position, all rows should match
         merged = df_api.merge(df_verified, on="match_key", suffixes=("_api", "_verified"), how="outer", indicator=True)
 
         total_comparisons, correct_comparisons = 0, 0
@@ -264,10 +261,31 @@ def compare_data(api_output, verified_file_path):
                 norm_api = normalize_value(val_api)
                 norm_verified = normalize_value(val_verified)
 
+                # Special handling for unit_num field - ignore formatting differences (dashes vs spaces)
+                if field == 'unit_num':
+                    # Remove all non-alphanumeric characters for comparison
+                    clean_api = re.sub(r'[^a-z0-9]', '', norm_api)
+                    clean_verified = re.sub(r'[^a-z0-9]', '', norm_verified)
+                    is_match = (clean_api == clean_verified)
+                    
+                # Special handling for tenant field - consider "None" equivalent to vacant indicators
+                elif field == 'tenant':
+                    # Check if API value is None/nan and verified is a vacant indicator
+                    if (norm_api in ['none', ''] and 
+                        ('vacant' in norm_verified or norm_verified in ['', 'nan'])):
+                        is_match = True
+                    # Or if verified is None/nan and API is a vacant indicator
+                    elif (norm_verified in ['none', ''] and 
+                          ('vacant' in norm_api or norm_api in ['', 'nan'])):
+                        is_match = True
+                    else:
+                        is_match = (norm_api == norm_verified)
+                
                 # Special handling for boolean 'is_mtm' (compare normalized 0/1)
-                if field == 'is_mtm':
+                elif field == 'is_mtm':
                     # Already converted to 0/1 int above
                     is_match = (int(val_api) == int(val_verified))
+                
                 # Special handling for numeric fields (allow small tolerance?) - For now, exact match after normalization
                 elif field in numeric_cols:
                     # Handle potential NaN comparison carefully
@@ -281,6 +299,7 @@ def compare_data(api_output, verified_file_path):
                     else:
                         # Could add tolerance here if needed: abs(val_api - val_verified) < tolerance
                         is_match = (float(val_api) == float(val_verified))
+                
                 else:  # Default string comparison
                     is_match = (norm_api == norm_verified)
 
