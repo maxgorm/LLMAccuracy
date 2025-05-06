@@ -8,6 +8,8 @@ import tempfile
 import time
 import copy
 
+#This file is used to compare the outputs of 2 LLMs on a given RR using Thejan's API
+
 # Import the API script functions
 from api_rent_roll_verifier import (
     submit_job,

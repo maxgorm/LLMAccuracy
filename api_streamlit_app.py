@@ -6,6 +6,10 @@ import sys
 import traceback
 import tempfile
 import time
+import zipfile
+import io
+
+#This file is used to compare RRs API output with verified output
 
 # Import the API script functions
 from api_rent_roll_verifier import (
@@ -68,20 +72,69 @@ def run_streamlit_app():
     sheet_name = st.text_input("Sheet Name (optional, leave blank for default)")
     st.info("Note: Sheet name will be ignored for PDF files.")
     
-    # Display file counts
+    # Display file counts and match files
     if uploaded_raw_files and uploaded_verified_files:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"Raw files uploaded: {len(uploaded_raw_files)}")
-            for file in uploaded_raw_files:
-                file_ext = os.path.splitext(file.name)[1].lower()
-                file_type = "PDF" if file_ext == '.pdf' else "Excel"
-                st.write(f"- {file.name} ({file_type})")
+        st.write(f"Raw files uploaded: {len(uploaded_raw_files)}, Verified files uploaded: {len(uploaded_verified_files)}")
         
-        with col2:
-            st.write(f"Verified files uploaded: {len(uploaded_verified_files)}")
-            for file in uploaded_verified_files:
-                st.write(f"- {file.name}")
+        # Match files based on name similarity before saving to disk
+        raw_file_names = [file.name for file in uploaded_raw_files]
+        verified_file_names = [file.name for file in uploaded_verified_files]
+        
+        # Extract base names without extensions for matching
+        raw_base_names = [os.path.splitext(name)[0] for name in raw_file_names]
+        verified_base_names = [os.path.splitext(name)[0].replace(" Verified", "") for name in verified_file_names]
+        
+        # Create a list to store matched pairs
+        matched_pairs = []
+        unmatched_raw = []
+        
+        # For each raw file, find the best matching verified file
+        for i, raw_name in enumerate(raw_file_names):
+            raw_base = raw_base_names[i]
+            
+            # Find the verified file with the most similar name
+            best_match_idx = -1
+            best_match_score = -1
+            
+            for j, verified_base in enumerate(verified_base_names):
+                # Simple similarity score: length of common prefix
+                common_prefix_len = 0
+                for a, b in zip(raw_base, verified_base):
+                    if a == b:
+                        common_prefix_len += 1
+                    else:
+                        break
+                
+                # If this is a better match than what we've seen so far
+                if common_prefix_len > best_match_score:
+                    best_match_score = common_prefix_len
+                    best_match_idx = j
+            
+            if best_match_idx >= 0:
+                matched_pairs.append((raw_name, verified_file_names[best_match_idx]))
+                # Remove the matched verified file to prevent duplicate matches
+                verified_file_names.pop(best_match_idx)
+                verified_base_names.pop(best_match_idx)
+            else:
+                unmatched_raw.append(raw_name)
+        
+        # Display matched pairs
+        st.subheader("Matched File Pairs")
+        for raw, verified in matched_pairs:
+            file_ext = os.path.splitext(raw)[1].lower()
+            file_type = "PDF" if file_ext == '.pdf' else "Excel"
+            st.write(f"- {raw} ({file_type}) → {verified}")
+        
+        # Display unmatched files if any
+        if unmatched_raw:
+            st.warning("The following raw files could not be matched with a verified file:")
+            for raw in unmatched_raw:
+                st.write(f"- {raw}")
+        
+        if verified_file_names:  # Any remaining verified files
+            st.warning("The following verified files could not be matched with a raw file:")
+            for verified in verified_file_names:
+                st.write(f"- {verified}")
         
         # Check if counts match
         if len(uploaded_raw_files) != len(uploaded_verified_files):
@@ -162,7 +215,7 @@ def run_streamlit_app():
                                 file_status_text = st.empty()
                                 
                                 # Set up retry parameters
-                                max_retries = 100
+                                max_retries = 1000
                                 retry_delay = 10
                                 
                                 # Implement retry logic with progress updates
@@ -248,6 +301,41 @@ def run_streamlit_app():
                             # Calculate average accuracy
                             avg_accuracy = sum(r["accuracy"] for r in results) / len(results)
                             st.metric("Average Accuracy Across All Files", f"{avg_accuracy:.2f}%")
+                            
+                            # Create a ZIP file with all results if there are multiple files
+                            if len(results) > 1:
+                                # Create a buffer for the ZIP file
+                                zip_buffer = io.BytesIO()
+                                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                                    # Add all API outputs and comparison diffs to the ZIP file
+                                    for result in results:
+                                        raw_file_name = os.path.basename(result["raw_file"])
+                                        
+                                        # Add API output JSON
+                                        api_output_json = json.dumps(result["api_output"], indent=2, default=str)
+                                        zip_file.writestr(f"api_output_{raw_file_name}.json", api_output_json)
+                                        
+                                        # Add comparison diff JSON
+                                        diff_output = {
+                                            "raw_file": os.path.basename(result["raw_file"]),
+                                            "verified_file": os.path.basename(result["verified_file"]),
+                                            "accuracy_percent": result["accuracy"],
+                                            "field_mismatches": result["diffs"]
+                                        }
+                                        diff_json = json.dumps(diff_output, indent=2, default=str)
+                                        zip_file.writestr(f"api_comparison_diff_{raw_file_name}.json", diff_json)
+                                
+                                # Reset buffer position to the beginning
+                                zip_buffer.seek(0)
+                                
+                                # Add a download button for the ZIP file
+                                st.download_button(
+                                    label="Download All Results as ZIP",
+                                    data=zip_buffer,
+                                    file_name="rent_roll_verification_results.zip",
+                                    mime="application/zip",
+                                    key="download_all_results"
+                                )
                             
                             # Create tabs for each file
                             tabs = st.tabs([os.path.basename(r["raw_file"]) for r in results])
