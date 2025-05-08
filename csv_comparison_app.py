@@ -8,6 +8,7 @@ import tempfile
 import time
 import zipfile
 import io
+import re
 from typing import Dict, List, Any, Optional, Tuple
 
 # For doing what Thejan asked:
@@ -193,8 +194,24 @@ def compare_csv_data(ai_csv_path, rb_csv_path):
                 norm_ai = normalize_value(val_ai)
                 norm_rb = normalize_value(val_rb)
 
+                # Special handling for unit_num field - ignore formatting differences (dashes vs spaces)
+                if field == 'unit_num':
+                    # Remove all non-alphanumeric characters for comparison
+                    clean_ai = re.sub(r'[^a-z0-9]', '', norm_ai)
+                    clean_rb = re.sub(r'[^a-z0-9]', '', norm_rb)
+                    is_match = (clean_ai == clean_rb)
+                # Special handling for tenant field - consider "None" equivalent to vacant indicators
+                elif field == 'tenant':
+                    # Check if AI value is None/nan and RB is a vacant indicator
+                    if (pd.isna(val_ai) or norm_ai in ['none', '', 'nan']) and ('vacant' in norm_rb or '<<<vacant' in norm_rb):
+                        is_match = True
+                    # Or if RB is None/nan and AI is a vacant indicator
+                    elif (pd.isna(val_rb) or norm_rb in ['none', '', 'nan']) and ('vacant' in norm_ai or '<<<vacant' in norm_ai):
+                        is_match = True
+                    else:
+                        is_match = (norm_ai == norm_rb)
                 # Special handling for boolean 'is_mtm' (compare normalized 0/1)
-                if field == 'is_mtm':
+                elif field == 'is_mtm':
                     try:
                         is_match = (int(val_ai) == int(val_rb))
                     except (ValueError, TypeError):
