@@ -9,6 +9,7 @@ import time
 import zipfile
 import io
 import re
+import concurrent.futures
 from typing import Dict, List, Any, Optional, Tuple
 
 # For doing what Thejan asked:
@@ -29,6 +30,8 @@ if 'comparison_path' not in st.session_state:
     st.session_state.comparison_path = None
 if 'zip_buffer' not in st.session_state:
     st.session_state.zip_buffer = None
+if 'download_clicked' not in st.session_state:
+    st.session_state.download_clicked = False
 
 # Import necessary functions from api_rent_roll_verifier
 from api_rent_roll_verifier import (
@@ -57,6 +60,97 @@ def json_to_csv_string(json_data):
         return csv_string
     except Exception as e:
         st.error(f"Error converting JSON to CSV: {e}")
+        return None
+
+def process_single_file(file_path, temp_dir, ai_output_path, rb_output_path, comparison_path, sheet_name=None):
+    """Process a single rent roll file, generating both AI and Rules-Based outputs and comparing them."""
+    file_name = os.path.basename(file_path)
+    
+    try:
+        # --- Run with bypassRB=true (AI Output) ---
+        job_id_ai = submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=True)
+
+        if not job_id_ai:
+            st.error(f"Failed to submit AI job to API for {file_name}.")
+            return None
+
+        # Fetch AI results
+        api_output_ai = fetch_job_results(job_id_ai, max_retries=50, retry_delay=10)
+
+        if not api_output_ai:
+            st.error(f"Failed to fetch AI job results from API for {file_name}.")
+            return None
+
+        # Convert AI output to CSV and save
+        ai_csv_string = json_to_csv_string(api_output_ai)
+        ai_csv_filename = None
+        if ai_csv_string:
+            ai_csv_filename = os.path.join(ai_output_path, f"{os.path.splitext(file_name)[0]}_AI.csv")
+            with open(ai_csv_filename, 'w') as f:
+                f.write(ai_csv_string)
+        else:
+            st.warning(f"No data found in AI output for {file_name} to save as CSV.")
+
+        # --- Run with bypassRB=false (Rules-Based Output) ---
+        job_id_rb = submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=False)
+
+        if not job_id_rb:
+            st.error(f"Failed to submit Rules-Based job to API for {file_name}.")
+            return None
+
+        # Fetch Rules-Based results
+        api_output_rb = fetch_job_results(job_id_rb, max_retries=50, retry_delay=10)
+
+        if not api_output_rb:
+            st.error(f"Failed to fetch Rules-Based job results from API for {file_name}.")
+            return None
+
+        # Convert Rules-Based output to CSV and save
+        rb_csv_string = json_to_csv_string(api_output_rb)
+        rb_csv_filename = None
+        if rb_csv_string:
+            rb_csv_filename = os.path.join(rb_output_path, f"{os.path.splitext(file_name)[0]}_RB.csv")
+            with open(rb_csv_filename, 'w') as f:
+                f.write(rb_csv_string)
+        else:
+            st.warning(f"No data found in Rules-Based output for {file_name} to save as CSV.")
+
+        # --- Compare CSV Outputs and Generate Diff Report ---
+        comparison_result = None
+        if ai_csv_filename and rb_csv_filename:
+            accuracy, diffs, merged_df, field_stats = compare_csv_data(ai_csv_filename, rb_csv_filename)
+
+            if accuracy is not None:
+                # Save detailed differences as JSON
+                diff_output = {
+                    "file": file_name,
+                    "accuracy_percent": accuracy,
+                    "field_mismatches": diffs
+                }
+                comparison_json_filename = os.path.join(comparison_path, f"comparison_diff_{os.path.splitext(file_name)[0]}.json")
+                with open(comparison_json_filename, 'w') as f:
+                    json.dump(diff_output, f, indent=2, default=str)
+
+                comparison_result = {
+                    "file": file_name,
+                    "accuracy": accuracy,
+                    "diffs": diffs,
+                    "merged_df": merged_df,
+                    "field_stats": field_stats,
+                    "ai_csv_path": ai_csv_filename,
+                    "rb_csv_path": rb_csv_filename,
+                    "comparison_json_path": comparison_json_filename
+                }
+            else:
+                st.error(f"Comparison failed for {file_name}. Check logs for details.")
+        else:
+            st.warning(f"Skipping comparison for {file_name} due to missing AI or Rules-Based CSV output.")
+
+        return comparison_result
+
+    except Exception as e:
+        st.error(f"Error processing {file_name}: {e}")
+        st.text(traceback.format_exc())
         return None
 
 def compare_csv_data(ai_csv_path, rb_csv_path):
@@ -158,6 +252,7 @@ def compare_csv_data(ai_csv_path, rb_csv_path):
 
         # Calculate statistics
         total_comparisons, correct_comparisons = 0, 0
+        unit_type_mismatches = 0  # Counter for unit_type mismatches
         diffs = {}
         unmatched_ai = merged[merged['_merge'] == 'left_only']
         unmatched_rb = merged[merged['_merge'] == 'right_only']
@@ -239,15 +334,40 @@ def compare_csv_data(ai_csv_path, rb_csv_path):
                 if is_match:
                     correct_comparisons += 1
                 else:
+                    # Record all differences in the diffs dictionary
                     diffs.setdefault(field, []).append({
                         "key": row.get("match_key", ""),
                         "ai_value": val_ai,
                         "rb_value": val_rb
                     })
+                    
+                    # Count unit_type mismatches separately
+                    if field == 'unit_type':
+                        unit_type_mismatches += 1
 
-        # Calculate accuracy
-        accuracy = round(100 * correct_comparisons / total_comparisons, 2) if total_comparisons > 0 else 0
-        st.write(f"\nOverall Accuracy (on matched rows): {accuracy}% ({correct_comparisons}/{total_comparisons} fields)")
+        # Calculate the total number of comparisons for each field
+        field_comparisons = {}
+        for field in FIELDS_TO_COMPARE:
+            field_comparisons[field] = len(matched)  # Each field is compared once per matched row
+        
+        # Calculate the number of mismatches for each field
+        field_mismatches = {}
+        for field in FIELDS_TO_COMPARE:
+            field_mismatches[field] = len(diffs.get(field, []))
+        
+        # Calculate the total number of non-unit_type comparisons and correct non-unit_type comparisons
+        non_unit_type_total = sum(field_comparisons[field] for field in FIELDS_TO_COMPARE if field != 'unit_type')
+        non_unit_type_mismatches = sum(field_mismatches[field] for field in FIELDS_TO_COMPARE if field != 'unit_type')
+        non_unit_type_correct = non_unit_type_total - non_unit_type_mismatches
+        
+        # Calculate accuracy based on non-unit_type fields only
+        if non_unit_type_total > 0:
+            accuracy = round(100 * non_unit_type_correct / non_unit_type_total, 2)
+        else:
+            accuracy = 100.0  # Default to 100% if there are no non-unit_type fields
+        
+        st.write(f"\nOverall Accuracy (excluding unit_type differences): {accuracy}% ({non_unit_type_correct}/{non_unit_type_total} non-unit_type fields)")
+        st.write(f"Unit type differences: {field_mismatches.get('unit_type', 0)} (not factored into accuracy)")
 
         # Calculate per-field statistics
         field_stats = {}
@@ -346,111 +466,60 @@ def run_streamlit_app():
                         f.write(file.getbuffer())
                     temp_paths.append(file_path)
 
-                # Process each file sequentially
+                # Process files in parallel (5 at a time)
                 results = []
-                for i, file_path in enumerate(temp_paths):
-                    file_name = os.path.basename(file_path)
-                    status_text.text(f"Processing file {i+1}/{len(temp_paths)}: {file_name}")
-                    progress_bar.progress((i) / len(temp_paths))
-
-                    try:
-                        # --- Run with bypassRB=true (AI Output) ---
-                        st.write(f"Submitting {file_name} to API (AI Output)...")
-                        job_id_ai = submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=True)
-
-                        if not job_id_ai:
-                            st.error(f"Failed to submit AI job to API for {file_name}.")
-                            continue
-
-                        st.write(f"AI job submitted successfully. Job ID: {job_id_ai}")
-
-                        st.write(f"Fetching results for AI output on {file_name}...")
-                        api_output_ai = fetch_job_results(job_id_ai, max_retries=50, retry_delay=10)
-
-                        if not api_output_ai:
-                            st.error(f"Failed to fetch AI job results from API for {file_name}.")
-                            continue
-
-                        # Convert AI output to CSV and save
-                        ai_csv_string = json_to_csv_string(api_output_ai)
-                        if ai_csv_string:
-                            ai_csv_filename = os.path.join(st.session_state.ai_output_path, f"{os.path.splitext(file_name)[0]}_AI.csv")
-                            with open(ai_csv_filename, 'w') as f:
-                                f.write(ai_csv_string)
-                            st.write(f"Saved AI output to {ai_csv_filename}")
-                        else:
-                            st.warning(f"No data found in AI output for {file_name} to save as CSV.")
-                            ai_csv_filename = None # Ensure it's None if no data
-
-                        # --- Run with bypassRB=false (Rules-Based Output) ---
-                        st.write(f"Submitting {file_name} to API (Rules-Based Output)...")
-                        job_id_rb = submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=False)
-
-                        if not job_id_rb:
-                            st.error(f"Failed to submit Rules-Based job to API for {file_name}.")
-                            continue
-
-                        st.write(f"Rules-Based job submitted successfully. Job ID: {job_id_rb}")
-
-                        st.write(f"Fetching results for Rules-Based output on {file_name}...")
-                        api_output_rb = fetch_job_results(job_id_rb, max_retries=50, retry_delay=10)
-
-                        if not api_output_rb:
-                            st.error(f"Failed to fetch Rules-Based job results from API for {file_name}.")
-                            continue
-
-                        # Convert Rules-Based output to CSV and save
-                        rb_csv_string = json_to_csv_string(api_output_rb)
-                        if rb_csv_string:
-                            rb_csv_filename = os.path.join(st.session_state.rb_output_path, f"{os.path.splitext(file_name)[0]}_RB.csv")
-                            with open(rb_csv_filename, 'w') as f:
-                                f.write(rb_csv_string)
-                            st.write(f"Saved Rules-Based output to {rb_csv_filename}")
-                        else:
-                            st.warning(f"No data found in Rules-Based output for {file_name} to save as CSV.")
-                            rb_csv_filename = None # Ensure it's None if no data
-
-                        # --- Compare CSV Outputs and Generate Diff Report ---
-                        if ai_csv_filename and rb_csv_filename:
-                            st.write(f"Comparing AI and Rules-Based outputs for {file_name}...")
-                            accuracy, diffs, merged_df, field_stats = compare_csv_data(ai_csv_filename, rb_csv_filename)
-
-                            if accuracy is not None:
-                                # Save detailed differences as JSON
-                                diff_output = {
-                                    "file": file_name,
-                                    "accuracy_percent": accuracy,
-                                    "field_mismatches": diffs
-                                }
-                                comparison_json_filename = os.path.join(st.session_state.comparison_path, f"comparison_diff_{os.path.splitext(file_name)[0]}.json")
-                                with open(comparison_json_filename, 'w') as f:
-                                    json.dump(diff_output, f, indent=2, default=str)
-                                st.write(f"Saved comparison diff to {comparison_json_filename}")
-
-                                results.append({
-                                    "file": file_name,
-                                    "accuracy": accuracy,
-                                    "diffs": diffs,
-                                    "merged_df": merged_df,
-                                    "field_stats": field_stats,
-                                    "ai_csv_path": ai_csv_filename,
-                                    "rb_csv_path": rb_csv_filename,
-                                    "comparison_json_path": comparison_json_filename
-                                })
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Set the maximum number of workers (parallel processes)
+                max_workers = 5
+                
+                st.write(f"Processing {len(temp_paths)} files in parallel (max {max_workers} at a time)...")
+                
+                # Process files in parallel using ThreadPoolExecutor
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all tasks
+                    future_to_file = {
+                        executor.submit(
+                            process_single_file, 
+                            file_path, 
+                            st.session_state.temp_dir,
+                            st.session_state.ai_output_path,
+                            st.session_state.rb_output_path,
+                            st.session_state.comparison_path,
+                            sheet_name
+                        ): file_path for file_path in temp_paths
+                    }
+                    
+                    # Process completed tasks as they finish
+                    completed = 0
+                    for future in concurrent.futures.as_completed(future_to_file):
+                        file_path = future_to_file[future]
+                        file_name = os.path.basename(file_path)
+                        
+                        try:
+                            result = future.result()
+                            if result:
+                                results.append(result)
+                                status_text.text(f"Successfully processed: {file_name}")
                             else:
-                                st.error(f"Comparison failed for {file_name}. Check logs for details.")
-                        else:
-                            st.warning(f"Skipping comparison for {file_name} due to missing AI or Rules-Based CSV output.")
-
-                    except Exception as e:
-                        st.error(f"Error processing {file_name}: {e}")
-                        st.text(traceback.format_exc())
-
-                    # Update progress
-                    progress_bar.progress((i + 1) / len(temp_paths))
-
+                                status_text.text(f"Failed to process: {file_name}")
+                        except Exception as e:
+                            status_text.text(f"Error processing {file_name}: {e}")
+                            st.text(traceback.format_exc())
+                        
+                        # Update progress
+                        completed += 1
+                        progress_bar.progress(completed / len(temp_paths))
+                
                 # Save results to session state
                 st.session_state.results = results
+                
+                # Print summary
+                st.subheader("Processing Summary")
+                st.write(f"Total files processed: {len(temp_paths)}")
+                st.write(f"Successful: {len(results)}")
+                st.write(f"Failed: {len(temp_paths) - len(results)}")
 
             # Complete progress bar
             progress_bar.progress(1.0)
@@ -482,16 +551,23 @@ def run_streamlit_app():
                         zip_buffer.seek(0)
                         st.session_state.zip_buffer = zip_buffer
 
-                    # Add a download button for the ZIP file
-                    # Use a unique key based on a timestamp to prevent rerun issues
-                    download_key = f"download_all_results_{int(time.time())}"
+                    # Add a download button for the ZIP file with a stable key
+                    # Use a callback to track when download is clicked
+                    def on_download_click():
+                        st.session_state.download_clicked = True
+                    
                     st.download_button(
                         label="Download All Results as ZIP",
                         data=st.session_state.zip_buffer,
                         file_name="rent_roll_comparison_results.zip",
                         mime="application/zip",
-                        key=download_key
+                        key="download_all_results",
+                        on_click=on_download_click
                     )
+                    
+                    # Display a message if download was clicked
+                    if st.session_state.download_clicked:
+                        st.success("Download initiated! If your download doesn't start automatically, please click the button again.")
 
                     # Create tabs for each file
                     tabs = st.tabs([os.path.basename(r["file"]) for r in results])
@@ -555,7 +631,7 @@ def run_streamlit_app():
                                         data=ai_data,
                                         file_name=os.path.basename(result["ai_csv_path"]),
                                         mime="text/csv",
-                                        key=f"download_ai_{i}_{int(time.time())}"
+                                        key=f"download_ai_{i}"
                                     )
                             with col2:
                                 if result.get("rb_csv_path"):
@@ -566,7 +642,7 @@ def run_streamlit_app():
                                         data=rb_data,
                                         file_name=os.path.basename(result["rb_csv_path"]),
                                         mime="text/csv",
-                                        key=f"download_rb_{i}_{int(time.time())}"
+                                        key=f"download_rb_{i}"
                                     )
                             with col3:
                                 if result.get("comparison_json_path"):
@@ -577,7 +653,7 @@ def run_streamlit_app():
                                         data=comparison_data,
                                         file_name=os.path.basename(result["comparison_json_path"]),
                                         mime="application/json",
-                                        key=f"download_diff_{i}_{int(time.time())}"
+                                        key=f"download_diff_{i}"
                                     )
 
                             # Display side-by-side comparison (optional, can be large)

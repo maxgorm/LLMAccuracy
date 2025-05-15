@@ -11,6 +11,8 @@ import io
 import concurrent.futures
 from typing import Dict, List, Any, Optional, Tuple
 
+# Does the API include whether LLM or RB was used in metadata?0
+
 # Import necessary functions from api_rent_roll_verifier
 from api_rent_roll_verifier import (
     submit_job,

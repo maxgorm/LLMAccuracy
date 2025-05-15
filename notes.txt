@@ -31,3 +31,6 @@ Switch key from tenant to unit_num.
 
 
 Run 10 RRs through with bypass LLMs flag and give output .csv to Thejan
+
+
+-Add final report JSON file that lists each file, accuracy score, and their number of diffs
