@@ -48,6 +48,41 @@ AI_OUTPUT_FOLDER = "AI_OUTPUT"
 RB_OUTPUT_FOLDER = "RB_OUTPUT"
 COMPARISON_FOLDER = "COMPARISON"
 
+def generate_summary_report(results, output_path):
+    """
+    Generate a summary report CSV file with file names, accuracy scores, and number of diffs.
+    
+    Args:
+        results: List of comparison results
+        output_path: Path to save the CSV file
+    """
+    try:
+        # Create a list of dictionaries for the report
+        report_data = []
+        for result in results:
+            # Count total number of diffs across all fields
+            total_diffs = sum(len(diffs) for diffs in result.get("diffs", {}).values())
+            
+            report_data.append({
+                "File Name": result["file"],
+                "Accuracy Score (%)": result["accuracy"],
+                "Number of Diffs": total_diffs
+            })
+        
+        # Convert to DataFrame and save as CSV
+        if report_data:
+            df = pd.DataFrame(report_data)
+            df.to_csv(output_path, index=False)
+            st.success(f"Summary report generated with {len(report_data)} files")
+        else:
+            st.warning("No data available to generate summary report")
+            # Create an empty CSV with headers
+            pd.DataFrame(columns=["File Name", "Accuracy Score (%)", "Number of Diffs"]).to_csv(output_path, index=False)
+    
+    except Exception as e:
+        st.error(f"Error generating summary report: {e}")
+        st.text(traceback.format_exc())
+
 def json_to_csv_string(json_data):
     """Converts the 'df' part of the API JSON output to a CSV string."""
     if not json_data or "df" not in json_data or not json_data["df"]:
@@ -546,6 +581,12 @@ def run_streamlit_app():
                                         # Add file to zip, preserving folder structure relative to temp_dir
                                         arcname = os.path.relpath(file_path, st.session_state.temp_dir)
                                         zip_file.write(file_path, arcname)
+                            
+                            # Generate and add the summary report CSV
+                            summary_report_path = os.path.join(st.session_state.temp_dir, "summary_report.csv")
+                            generate_summary_report(results, summary_report_path)
+                            # Add the summary report at the root level of the ZIP
+                            zip_file.write(summary_report_path, "summary_report.csv")
 
                         # Reset buffer position to the beginning
                         zip_buffer.seek(0)
