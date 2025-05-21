@@ -10,7 +10,10 @@ import zipfile
 import io
 import re
 import concurrent.futures
+import asyncio
 from typing import Dict, List, Any, Optional, Tuple
+
+# API Key: aEWEppF5Edt5Ffl3kMUOssW4VLrsIwnfGiPj3VDclMQN2DGeIPGXBWX4DKJbJ08CMO46CY6i5LmSg3K328o0AfXioytWYupCAOUIofEPSkDUjZwL3VQamLr4wBjilyWq
 
 # For doing what Thejan asked:
 # Comparing outputs between AI and Rules-Based API responses
@@ -32,11 +35,15 @@ if 'zip_buffer' not in st.session_state:
     st.session_state.zip_buffer = None
 if 'download_clicked' not in st.session_state:
     st.session_state.download_clicked = False
+if 'excluded_fields' not in st.session_state:
+    st.session_state.excluded_fields = ['unit_type']  # Default to excluding unit_type to match current behavior
 
 # Import necessary functions from api_rent_roll_verifier
 from api_rent_roll_verifier import (
     submit_job,
     fetch_job_results,
+    async_submit_job,
+    async_fetch_job_results,
     normalize_value,
     FIELDS_TO_COMPARE,
     API_BASE_URL,
@@ -59,14 +66,20 @@ def generate_summary_report(results, output_path):
     try:
         # Create a list of dictionaries for the report
         report_data = []
+        
+        # Count files with 100% accuracy
+        perfect_files = sum(1 for result in results if result["accuracy"] == 100.0)
+        perfect_percentage = round((perfect_files / len(results) * 100), 2) if results else 0
+        
         for result in results:
-            # Count total number of diffs across all fields
-            total_diffs = sum(len(diffs) for diffs in result.get("diffs", {}).values())
+            # Count total number of diffs across all fields, excluding unit_type
+            total_diffs = sum(len(diffs) for field, diffs in result.get("diffs", {}).items() if field != 'unit_type')
             
             report_data.append({
                 "File Name": result["file"],
                 "Accuracy Score (%)": result["accuracy"],
-                "Number of Diffs": total_diffs
+                "Number of Diffs": total_diffs,
+                "Perfect Files (%)": perfect_percentage  # Add the perfect files percentage to each row
             })
         
         # Convert to DataFrame and save as CSV
@@ -74,10 +87,11 @@ def generate_summary_report(results, output_path):
             df = pd.DataFrame(report_data)
             df.to_csv(output_path, index=False)
             st.success(f"Summary report generated with {len(report_data)} files")
+            st.info(f"Perfect Files (100% accuracy): {perfect_files}/{len(results)} ({perfect_percentage}%)")
         else:
             st.warning("No data available to generate summary report")
             # Create an empty CSV with headers
-            pd.DataFrame(columns=["File Name", "Accuracy Score (%)", "Number of Diffs"]).to_csv(output_path, index=False)
+            pd.DataFrame(columns=["File Name", "Accuracy Score (%)", "Number of Diffs", "Perfect Files (%)"]).to_csv(output_path, index=False)
     
     except Exception as e:
         st.error(f"Error generating summary report: {e}")
@@ -153,7 +167,9 @@ def process_single_file(file_path, temp_dir, ai_output_path, rb_output_path, com
         # --- Compare CSV Outputs and Generate Diff Report ---
         comparison_result = None
         if ai_csv_filename and rb_csv_filename:
-            accuracy, diffs, merged_df, field_stats = compare_csv_data(ai_csv_filename, rb_csv_filename)
+            # Ensure excluded_fields exists in session state, use default if not
+            excluded_fields = st.session_state.get('excluded_fields', ['unit_type'])
+            accuracy, diffs, merged_df, field_stats = compare_csv_data(ai_csv_filename, rb_csv_filename, excluded_fields)
 
             if accuracy is not None:
                 # Save detailed differences as JSON
@@ -162,7 +178,9 @@ def process_single_file(file_path, temp_dir, ai_output_path, rb_output_path, com
                     "accuracy_percent": accuracy,
                     "field_mismatches": diffs
                 }
-                comparison_json_filename = os.path.join(comparison_path, f"comparison_diff_{os.path.splitext(file_name)[0]}.json")
+                # Round accuracy to nearest whole number for filename
+                accuracy_rounded = round(accuracy)
+                comparison_json_filename = os.path.join(comparison_path, f"comparison_diff_{accuracy_rounded}_{os.path.splitext(file_name)[0]}.json")
                 with open(comparison_json_filename, 'w') as f:
                     json.dump(diff_output, f, indent=2, default=str)
 
@@ -188,7 +206,114 @@ def process_single_file(file_path, temp_dir, ai_output_path, rb_output_path, com
         st.text(traceback.format_exc())
         return None
 
-def compare_csv_data(ai_csv_path, rb_csv_path):
+async def async_process_single_file(file_path, temp_dir, ai_output_path, rb_output_path, comparison_path, sheet_name=None):
+    """Async version to process a single rent roll file, generating both AI and Rules-Based outputs and comparing them."""
+    file_name = os.path.basename(file_path)
+    
+    try:
+        # --- Run with bypassRB=true (AI Output) ---
+        job_id_ai = await async_submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=True)
+
+        if not job_id_ai:
+            st.error(f"Failed to submit AI job to API for {file_name}.")
+            return None
+
+        # Fetch AI results
+        api_output_ai = await async_fetch_job_results(job_id_ai, max_retries=50, retry_delay=10)
+
+        if not api_output_ai:
+            st.error(f"Failed to fetch AI job results from API for {file_name}.")
+            return None
+
+        # Convert AI output to CSV and save
+        ai_csv_string = json_to_csv_string(api_output_ai)
+        ai_csv_filename = None
+        if ai_csv_string:
+            ai_csv_filename = os.path.join(ai_output_path, f"{os.path.splitext(file_name)[0]}_AI.csv")
+            # Write file using executor to avoid blocking
+            def write_ai_csv_file():
+                with open(ai_csv_filename, 'w') as f:
+                    f.write(ai_csv_string)
+            await asyncio.get_event_loop().run_in_executor(None, write_ai_csv_file)
+        else:
+            st.warning(f"No data found in AI output for {file_name} to save as CSV.")
+
+        # --- Run with bypassRB=false (Rules-Based Output) ---
+        job_id_rb = await async_submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=False)
+
+        if not job_id_rb:
+            st.error(f"Failed to submit Rules-Based job to API for {file_name}.")
+            return None
+
+        # Fetch Rules-Based results
+        api_output_rb = await async_fetch_job_results(job_id_rb, max_retries=50, retry_delay=10)
+
+        if not api_output_rb:
+            st.error(f"Failed to fetch Rules-Based job results from API for {file_name}.")
+            return None
+
+        # Convert Rules-Based output to CSV and save
+        rb_csv_string = json_to_csv_string(api_output_rb)
+        rb_csv_filename = None
+        if rb_csv_string:
+            rb_csv_filename = os.path.join(rb_output_path, f"{os.path.splitext(file_name)[0]}_RB.csv")
+            # Write file using executor to avoid blocking
+            def write_rb_csv_file():
+                with open(rb_csv_filename, 'w') as f:
+                    f.write(rb_csv_string)
+            await asyncio.get_event_loop().run_in_executor(None, write_rb_csv_file)
+        else:
+            st.warning(f"No data found in Rules-Based output for {file_name} to save as CSV.")
+
+        # --- Compare CSV Outputs and Generate Diff Report ---
+        comparison_result = None
+        if ai_csv_filename and rb_csv_filename:
+            # Run compare_csv_data in an executor since it's CPU-bound and not async
+            def run_comparison():
+                # Ensure excluded_fields exists in session state, use default if not
+                excluded_fields = st.session_state.get('excluded_fields', ['unit_type'])
+                return compare_csv_data(ai_csv_filename, rb_csv_filename, excluded_fields)
+            accuracy, diffs, merged_df, field_stats = await asyncio.get_event_loop().run_in_executor(None, run_comparison)
+
+            if accuracy is not None:
+                # Save detailed differences as JSON
+                diff_output = {
+                    "file": file_name,
+                    "accuracy_percent": accuracy,
+                    "field_mismatches": diffs
+                }
+                # Round accuracy to nearest whole number for filename
+                accuracy_rounded = round(accuracy)
+                comparison_json_filename = os.path.join(comparison_path, f"comparison_diff_{accuracy_rounded}_{os.path.splitext(file_name)[0]}.json")
+                # Write file using executor to avoid blocking
+                def write_comparison_json_file():
+                    with open(comparison_json_filename, 'w') as f:
+                        json.dump(diff_output, f, indent=2, default=str)
+                await asyncio.get_event_loop().run_in_executor(None, write_comparison_json_file)
+
+                comparison_result = {
+                    "file": file_name,
+                    "accuracy": accuracy,
+                    "diffs": diffs,
+                    "merged_df": merged_df,
+                    "field_stats": field_stats,
+                    "ai_csv_path": ai_csv_filename,
+                    "rb_csv_path": rb_csv_filename,
+                    "comparison_json_path": comparison_json_filename
+                }
+            else:
+                st.error(f"Comparison failed for {file_name}. Check logs for details.")
+        else:
+            st.warning(f"Skipping comparison for {file_name} due to missing AI or Rules-Based CSV output.")
+
+        return comparison_result
+
+    except Exception as e:
+        st.error(f"Error processing {file_name}: {e}")
+        st.text(traceback.format_exc())
+        return None
+
+def compare_csv_data(ai_csv_path, rb_csv_path, excluded_fields=None):
     """Compares two CSV files and returns the differences and accuracy."""
     try:
         df_ai = pd.read_csv(ai_csv_path)
@@ -218,7 +343,8 @@ def compare_csv_data(ai_csv_path, rb_csv_path):
 
         # --- Data Type Conversion & Cleaning ---
         # Convert date columns safely, coercing errors to NaT
-        date_cols = ['move_in', 'lease_start', 'lease_end']
+        # Note: lease_start is excluded from calculations as requested - will be added back later
+        date_cols = ['move_in', 'lease_end']
 
         for col in date_cols:
             if col in df_ai.columns:
@@ -390,19 +516,28 @@ def compare_csv_data(ai_csv_path, rb_csv_path):
         for field in FIELDS_TO_COMPARE:
             field_mismatches[field] = len(diffs.get(field, []))
         
-        # Calculate the total number of non-unit_type comparisons and correct non-unit_type comparisons
-        non_unit_type_total = sum(field_comparisons[field] for field in FIELDS_TO_COMPARE if field != 'unit_type')
-        non_unit_type_mismatches = sum(field_mismatches[field] for field in FIELDS_TO_COMPARE if field != 'unit_type')
-        non_unit_type_correct = non_unit_type_total - non_unit_type_mismatches
+        # If excluded_fields is None, initialize it as an empty list
+        if excluded_fields is None:
+            excluded_fields = []
+            
+        # Calculate the total number of comparisons and correct comparisons, excluding specified fields
+        included_fields_total = sum(field_comparisons[field] for field in FIELDS_TO_COMPARE if field not in excluded_fields)
+        included_fields_mismatches = sum(field_mismatches[field] for field in FIELDS_TO_COMPARE if field not in excluded_fields)
+        included_fields_correct = included_fields_total - included_fields_mismatches
         
-        # Calculate accuracy based on non-unit_type fields only
-        if non_unit_type_total > 0:
-            accuracy = round(100 * non_unit_type_correct / non_unit_type_total, 2)
+        # Calculate accuracy based on included fields only
+        if included_fields_total > 0:
+            accuracy = round(100 * included_fields_correct / included_fields_total, 2)
         else:
-            accuracy = 100.0  # Default to 100% if there are no non-unit_type fields
+            accuracy = 100.0  # Default to 100% if there are no included fields
         
-        st.write(f"\nOverall Accuracy (excluding unit_type differences): {accuracy}% ({non_unit_type_correct}/{non_unit_type_total} non-unit_type fields)")
-        st.write(f"Unit type differences: {field_mismatches.get('unit_type', 0)} (not factored into accuracy)")
+        excluded_fields_str = ", ".join(excluded_fields) if excluded_fields else "None"
+        st.write(f"\nOverall Accuracy (excluding {excluded_fields_str}): {accuracy}% ({included_fields_correct}/{included_fields_total} included fields)")
+        
+        # Display information about excluded fields
+        for field in excluded_fields:
+            if field in field_mismatches:
+                st.write(f"{field} differences: {field_mismatches.get(field, 0)} (not factored into accuracy)")
 
         # Calculate per-field statistics
         field_stats = {}
@@ -434,14 +569,14 @@ def run_streamlit_app():
     st.set_page_config(layout="wide")
     st.title("Rent Roll AI vs Rules-Based Comparison (CSV)")
 
-    st.info("Upload raw rent roll files (.xlsx or .pdf) to compare AI (bypassRB=true) and Rules-Based (bypassRB=false) API outputs, saved as CSV.")
+    st.info("Upload raw rent roll files (.xlsx, .xls, .xlsm, .csv, or .pdf) to compare AI (bypassRB=true) and Rules-Based (bypassRB=false) API outputs, saved as CSV.")
 
     # API Configuration
     with st.expander("API Configuration"):
         # Import at the beginning of the function to get the current values
         import api_rent_roll_verifier
         api_base_url = st.text_input("API Base URL", value=api_rent_roll_verifier.API_BASE_URL)
-        api_key = st.text_input("API Key (optional)", type="password", value=api_rent_roll_verifier.API_KEY)
+        api_key = st.text_input("API Key", type="password", placeholder="Enter your API key here")
 
         if st.button("Save API Configuration"):
             # Update the module variables directly
@@ -452,14 +587,37 @@ def run_streamlit_app():
     # File upload
     st.subheader("Upload Raw Rent Roll Files")
     uploaded_files = st.file_uploader(
-        "Upload Raw Rent Roll Files (.xlsx or .pdf)",
-        type=["xlsx", "pdf"],
+        "Upload Raw Rent Roll Files (.xlsx, .xls, .xlsm, .csv, or .pdf)",
+        type=["xlsx", "xls", "xlsm", "csv", "pdf"],
         accept_multiple_files=True
     )
 
     # Optional sheet name selection
     sheet_name = st.text_input("Sheet Name (optional, leave blank for default)")
     st.info("Note: Sheet name will be ignored for PDF files.")
+    
+    # Field selection for accuracy calculation
+    st.subheader("Fields to Include in Accuracy Calculation")
+    st.write("Select which fields to include when calculating the accuracy percentage:")
+    
+    # Create a checkbox for each field in FIELDS_TO_COMPARE
+    excluded_fields = []
+    cols = st.columns(3)  # Display checkboxes in 3 columns for better layout
+    
+    for i, field in enumerate(FIELDS_TO_COMPARE):
+        col_idx = i % 3
+        with cols[col_idx]:
+            # Default to checked for all fields except unit_type (to match current behavior)
+            default_checked = field != 'unit_type'
+            if st.checkbox(field, value=default_checked, key=f"field_{field}"):
+                # If checked, include in accuracy calculation (not excluded)
+                pass
+            else:
+                # If unchecked, exclude from accuracy calculation
+                excluded_fields.append(field)
+    
+    # Update session state with the current excluded fields
+    st.session_state.excluded_fields = excluded_fields
 
     if uploaded_files:
         st.write(f"Files uploaded: {len(uploaded_files)}")
@@ -501,51 +659,59 @@ def run_streamlit_app():
                         f.write(file.getbuffer())
                     temp_paths.append(file_path)
 
-                # Process files in parallel (5 at a time)
+                # Process files in parallel using asyncio
                 results = []
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
-                # Set the maximum number of workers (parallel processes)
-                max_workers = 5
+                # Set the maximum number of concurrent tasks
+                max_concurrent = 5
                 
-                st.write(f"Processing {len(temp_paths)} files in parallel (max {max_workers} at a time)...")
+                st.write(f"Processing {len(temp_paths)} files in parallel (max {max_concurrent} at a time)...")
                 
-                # Process files in parallel using ThreadPoolExecutor
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    # Submit all tasks
-                    future_to_file = {
-                        executor.submit(
-                            process_single_file, 
-                            file_path, 
-                            st.session_state.temp_dir,
-                            st.session_state.ai_output_path,
-                            st.session_state.rb_output_path,
-                            st.session_state.comparison_path,
-                            sheet_name
-                        ): file_path for file_path in temp_paths
-                    }
-                    
-                    # Process completed tasks as they finish
+                # Define async function to process all files
+                async def process_all_files():
+                    # Create semaphore to limit concurrency
+                    semaphore = asyncio.Semaphore(max_concurrent)
                     completed = 0
-                    for future in concurrent.futures.as_completed(future_to_file):
-                        file_path = future_to_file[future]
+                    
+                    # Define async function to process a single file with semaphore
+                    async def process_with_semaphore(file_path):
+                        nonlocal completed
                         file_name = os.path.basename(file_path)
                         
-                        try:
-                            result = future.result()
-                            if result:
-                                results.append(result)
-                                status_text.text(f"Successfully processed: {file_name}")
-                            else:
-                                status_text.text(f"Failed to process: {file_name}")
-                        except Exception as e:
-                            status_text.text(f"Error processing {file_name}: {e}")
-                            st.text(traceback.format_exc())
-                        
-                        # Update progress
-                        completed += 1
-                        progress_bar.progress(completed / len(temp_paths))
+                        async with semaphore:
+                            try:
+                                result = await async_process_single_file(
+                                    file_path, 
+                                    st.session_state.temp_dir,
+                                    st.session_state.ai_output_path,
+                                    st.session_state.rb_output_path,
+                                    st.session_state.comparison_path,
+                                    sheet_name
+                                )
+                                
+                                if result:
+                                    results.append(result)
+                                    status_text.text(f"Successfully processed: {file_name}")
+                                else:
+                                    status_text.text(f"Failed to process: {file_name}")
+                            except Exception as e:
+                                status_text.text(f"Error processing {file_name}: {e}")
+                                st.text(traceback.format_exc())
+                            
+                            # Update progress
+                            completed += 1
+                            progress_bar.progress(completed / len(temp_paths))
+                    
+                    # Create tasks for all files
+                    tasks = [process_with_semaphore(file_path) for file_path in temp_paths]
+                    
+                    # Wait for all tasks to complete
+                    await asyncio.gather(*tasks)
+                
+                # Run the async function
+                asyncio.run(process_all_files())
                 
                 # Save results to session state
                 st.session_state.results = results

@@ -9,6 +9,7 @@ import time
 import zipfile
 import io
 import concurrent.futures
+import asyncio
 from typing import Dict, List, Any, Optional, Tuple
 
 # Does the API include whether LLM or RB was used in metadata?0
@@ -17,6 +18,8 @@ from typing import Dict, List, Any, Optional, Tuple
 from api_rent_roll_verifier import (
     submit_job,
     fetch_job_results,
+    async_submit_job,
+    async_fetch_job_results,
     API_BASE_URL,
     API_KEY
 )
@@ -112,6 +115,77 @@ def process_file(file_path, temp_dir, sheet_name=None):
         st.text(traceback.format_exc())
         return None
 
+async def async_process_file(file_path, temp_dir, sheet_name=None):
+    """Async version to process a single rent roll file using the API with bypassRB=False."""
+    file_name = os.path.basename(file_path)
+    st.write(f"Processing file: {file_name}")
+    
+    try:
+        # Submit the job to the API with bypassRB=False (rules-based approach)
+        job_id = await async_submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=False)
+        
+        if not job_id:
+            st.error(f"Failed to submit job to API for {file_name}.")
+            return None
+        
+        st.write(f"Job submitted successfully. Job ID: {job_id}")
+        
+        # Fetch the job results
+        st.write(f"Fetching results for {file_name}...")
+        api_output = await async_fetch_job_results(job_id, max_retries=500, retry_delay=10)
+        
+        if not api_output:
+            st.error(f"Failed to fetch job results from API for {file_name}.")
+            return None
+        
+        # Check if the API fell back to LLM
+        used_llm = False
+        if isinstance(api_output, dict) and api_output.get("metadata") and api_output["metadata"].get("used_llm"):
+            used_llm = True
+            st.warning(f"API fell back to LLM for {file_name}")
+        
+        # Modify file name if LLM was used
+        output_base_name = os.path.splitext(file_name)[0]
+        if used_llm:
+            output_base_name += "_LLM"
+        
+        # Save JSON output
+        json_output_path = os.path.join(temp_dir, JSON_OUTPUT_FOLDER, f"{output_base_name}.json")
+        
+        # Write file using executor to avoid blocking
+        def write_json_file():
+            with open(json_output_path, 'w') as f:
+                json.dump(api_output, f, indent=2)
+        await asyncio.get_event_loop().run_in_executor(None, write_json_file)
+        st.write(f"Saved JSON output to {json_output_path}")
+        
+        # Convert to CSV and save
+        csv_string = json_to_csv_string(api_output)
+        csv_output_path = None
+        if csv_string:
+            csv_output_path = os.path.join(temp_dir, CSV_OUTPUT_FOLDER, f"{output_base_name}.csv")
+            
+            # Write file using executor to avoid blocking
+            def write_csv_file():
+                with open(csv_output_path, 'w') as f:
+                    f.write(csv_string)
+            await asyncio.get_event_loop().run_in_executor(None, write_csv_file)
+            st.write(f"Saved CSV output to {csv_output_path}")
+        else:
+            st.warning(f"No data found in API output for {file_name} to save as CSV.")
+        
+        return {
+            "file_name": file_name,
+            "job_id": job_id,
+            "json_path": json_output_path,
+            "csv_path": csv_output_path
+        }
+    
+    except Exception as e:
+        st.error(f"Error processing {file_name}: {e}")
+        st.text(traceback.format_exc())
+        return None
+
 def create_zip_file(temp_dir):
     """Create a ZIP file containing the JSON and CSV output folders."""
     zip_buffer = io.BytesIO()
@@ -176,6 +250,57 @@ def process_files_in_parallel(file_paths, temp_dir, sheet_name=None, max_workers
     
     return results
 
+async def async_process_files_in_parallel(file_paths, temp_dir, sheet_name=None, max_concurrent=5):
+    """Async version to process multiple rent roll files in parallel."""
+    st.write(f"Processing {len(file_paths)} files in parallel (max {max_concurrent} at a time) using async processing...")
+    
+    results = []
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    # Create semaphore to limit concurrency
+    semaphore = asyncio.Semaphore(max_concurrent)
+    completed = 0
+    
+    # Define async function to process a single file with semaphore
+    async def process_with_semaphore(file_path):
+        nonlocal completed
+        file_name = os.path.basename(file_path)
+        
+        async with semaphore:
+            try:
+                result = await async_process_file(file_path, temp_dir, sheet_name)
+                if result:
+                    results.append(result)
+                    status_text.text(f"Successfully processed: {file_name}")
+                else:
+                    status_text.text(f"Failed to process: {file_name}")
+            except Exception as e:
+                status_text.text(f"Error processing {file_name}: {e}")
+                st.text(traceback.format_exc())
+            
+            # Update progress
+            completed += 1
+            progress_bar.progress(completed / len(file_paths))
+    
+    # Create tasks for all files
+    tasks = [process_with_semaphore(file_path) for file_path in file_paths]
+    
+    # Wait for all tasks to complete
+    await asyncio.gather(*tasks)
+    
+    # Complete progress bar
+    progress_bar.progress(1.0)
+    status_text.text("Processing complete!")
+    
+    # Print summary
+    st.subheader("Processing Summary")
+    st.write(f"Total files processed: {len(file_paths)}")
+    st.write(f"Successful: {len(results)}")
+    st.write(f"Failed: {len(file_paths) - len(results)}")
+    
+    return results
+
 def run_streamlit_app():
     """Main Streamlit app function."""
     st.set_page_config(layout="wide")
@@ -205,7 +330,7 @@ def run_streamlit_app():
     )
     
     # Processing options
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         sheet_name = st.text_input("Sheet Name (optional, leave blank for default)")
         st.info("Note: Sheet name will be ignored for PDF files.")
@@ -213,6 +338,10 @@ def run_streamlit_app():
     with col2:
         max_workers = st.slider("Maximum Parallel Workers", min_value=1, max_value=10, value=5)
         st.info("Number of files to process simultaneously.")
+    
+    with col3:
+        use_async = st.checkbox("Use Async Processing", value=True)
+        st.info("Async processing reduces CPU load and may improve performance.")
     
     if uploaded_files:
         st.write(f"Files uploaded: {len(uploaded_files)}")
@@ -245,12 +374,22 @@ def run_streamlit_app():
                     temp_paths.append(file_path)
                 
                 # Process files in parallel
-                results = process_files_in_parallel(
-                    temp_paths,
-                    st.session_state.temp_dir,
-                    sheet_name=sheet_name if sheet_name else None,
-                    max_workers=max_workers
-                )
+                if use_async:
+                    # Use async processing
+                    results = asyncio.run(async_process_files_in_parallel(
+                        temp_paths,
+                        st.session_state.temp_dir,
+                        sheet_name=sheet_name if sheet_name else None,
+                        max_concurrent=max_workers
+                    ))
+                else:
+                    # Use traditional processing with ThreadPoolExecutor
+                    results = process_files_in_parallel(
+                        temp_paths,
+                        st.session_state.temp_dir,
+                        sheet_name=sheet_name if sheet_name else None,
+                        max_workers=max_workers
+                    )
                 
                 # Save results to session state
                 st.session_state.results = results

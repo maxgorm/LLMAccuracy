@@ -8,6 +8,8 @@ import os
 import time
 import pdfplumber
 import tabula
+import aiohttp
+import asyncio
 
 #This file 
 
@@ -36,6 +38,16 @@ def check_api_key():
         else:
             print("No API key provided. Proceeding without authentication.")
             print("Note: The API may reject requests without proper authentication.")
+
+async def async_check_api_key():
+    """Async version of check_api_key."""
+    global API_KEY
+    if API_KEY is None:
+        print("API key not set. You may need an API key to access the service.")
+        # In async context, we can't use input() directly
+        # This is a simplified version that just uses the existing API_KEY
+        print("No API key provided. Proceeding without authentication.")
+        print("Note: The API may reject requests without proper authentication.")
 
 def submit_job(file_path, doc_type="rent_roll", sheet_name="", bypass_rb=False):
     """Submit a new job to the API."""
@@ -126,6 +138,109 @@ def fetch_job_results(job_id, max_retries=10, retry_delay=5):
             if hasattr(e, 'response') and e.response is not None:
                 print(f"Response status code: {e.response.status_code}")
                 print(f"Response body: {e.response.text}")
+            return None
+    
+    print(f"Max retries ({max_retries}) reached. Job may still be processing.")
+    return None
+
+async def async_submit_job(file_path, doc_type="rent_roll", sheet_name="", bypass_rb=False):
+    """Async version of submit_job to submit a new job to the API."""
+    await async_check_api_key()
+    
+    url = f"{API_BASE_URL}/jobs"
+    
+    # Prepare headers with API key if available
+    headers = {}
+    if API_KEY:
+        headers["X-API-Key"] = API_KEY
+    
+    # Determine file type and set appropriate content type
+    file_ext = os.path.splitext(file_path)[1].lower()
+    if file_ext == '.pdf':
+        content_type = 'application/pdf'
+        print(f"Submitting PDF file: {file_path}")
+    else:  # Default to Excel for .xlsx and other formats
+        content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        print(f"Submitting Excel file: {file_path}")
+    
+    # Prepare data for aiohttp
+    data = aiohttp.FormData()
+    data.add_field('doc_type', doc_type)
+    data.add_field('sheet_name', sheet_name if file_ext != '.pdf' else '')
+    data.add_field('bypass_rb', str(bypass_rb).lower())  # Convert boolean to string 'true'/'false'
+    
+    # Add file
+    with open(file_path, 'rb') as f:
+        file_content = f.read()
+    
+    data.add_field('file', 
+                  file_content, 
+                  filename=os.path.basename(file_path),
+                  content_type=content_type)
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, data=data) as response:
+                if response.status >= 400:
+                    print(f"Error submitting job: HTTP {response.status}")
+                    print(f"Response body: {await response.text()}")
+                    return None
+                
+                result = await response.json()
+                print(f"Job submitted successfully. Job ID: {result.get('job_id')}")
+                return result.get('job_id')
+    
+    except aiohttp.ClientError as e:
+        print(f"Error submitting job: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error submitting job: {e}")
+        return None
+
+async def async_fetch_job_results(job_id, max_retries=10, retry_delay=5):
+    """Async version of fetch_job_results with retry logic for jobs that are still processing."""
+    await async_check_api_key()
+    
+    url = f"{API_BASE_URL}/jobs/{job_id}"
+    
+    # Set a large page size to avoid pagination
+    params = {
+        'pg_size': 10000,
+        'pg_idx': 1
+    }
+    
+    # Prepare headers with API key if available
+    headers = {}
+    if API_KEY:
+        headers["X-API-Key"] = API_KEY
+    
+    retries = 0
+    while retries < max_retries:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status >= 400:
+                        print(f"Error fetching job results: HTTP {response.status}")
+                        print(f"Response body: {await response.text()}")
+                        return None
+                    
+                    result = await response.json()
+                    
+                    # Check if job is still processing
+                    if result.get('job', {}).get('status') == 'processing':
+                        print(f"Job is still processing. Retrying in {retry_delay} seconds... ({retries + 1}/{max_retries})")
+                        await asyncio.sleep(retry_delay)  # Use asyncio.sleep instead of time.sleep
+                        retries += 1
+                        continue
+                    
+                    # Job is complete, return the results
+                    return result
+        
+        except aiohttp.ClientError as e:
+            print(f"Error fetching job results: {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error fetching job results: {e}")
             return None
     
     print(f"Max retries ({max_retries}) reached. Job may still be processing.")
@@ -426,6 +541,67 @@ def process_single_file(raw_file, verified_file, output_diff_file=None, bypass_r
     print(f"\nVerification process complete for {raw_file}.")
     return accuracy, diffs, merged_df
 
+async def async_process_single_file(raw_file, verified_file, output_diff_file=None, bypass_rb=False):
+    """Async version to process a single rent roll file and its verified counterpart using the API."""
+    print(f"Processing raw file: {raw_file}")
+    print(f"Comparing against verified file: {verified_file}")
+
+    # Step 1: Submit the job to the API
+    job_id = await async_submit_job(raw_file, bypass_rb=bypass_rb)
+    if not job_id:
+        print(f"Failed to submit job to API for {raw_file}. Exiting.")
+        return None, None, None
+
+    # Step 2: Fetch the job results
+    print(f"\nFetching results for job ID: {job_id}...")
+    api_output = await async_fetch_job_results(job_id)
+    
+    if not api_output:
+        print(f"Failed to fetch job results from API for {raw_file}. Exiting.")
+        return None, None, None
+
+    # Save intermediate API output for inspection
+    api_output_filename = f"api_output_{os.path.basename(raw_file)}.json"
+    try:
+        # Write file using executor to avoid blocking
+        def write_json_file():
+            with open(api_output_filename, 'w') as f:
+                json.dump(api_output, f, indent=2)
+        await asyncio.get_event_loop().run_in_executor(None, write_json_file)
+        print(f"\nSaved API output to {api_output_filename}")
+    except Exception as e:
+        print(f"Warning: Could not save API output JSON for {raw_file}: {e}")
+
+    # Step 3: Compare API output with Verified Data
+    print(f"\nComparing API output with verified data for {raw_file}...")
+    # Run compare_data in an executor since it's CPU-bound and not async
+    def run_comparison():
+        return compare_data(api_output, verified_file)
+    accuracy, diffs, merged_df = await asyncio.get_event_loop().run_in_executor(None, run_comparison)
+
+    if accuracy is not None and diffs is not None and output_diff_file:
+        print(f"\nSaving differences to {output_diff_file}...")
+        try:
+            # Save detailed differences
+            diff_output = {
+                "raw_file": raw_file,
+                "verified_file": verified_file,
+                "accuracy_percent": accuracy,
+                "field_mismatches": diffs,
+            }
+            
+            # Write file using executor to avoid blocking
+            def write_diff_file():
+                with open(output_diff_file, 'w') as f:
+                    json.dump(diff_output, f, indent=2, default=str)
+            await asyncio.get_event_loop().run_in_executor(None, write_diff_file)
+            print(f"Differences saved for {raw_file}.")
+        except Exception as e:
+            print(f"Error saving differences JSON for {raw_file}: {e}")
+
+    print(f"\nVerification process complete for {raw_file}.")
+    return accuracy, diffs, merged_df
+
 def match_files(raw_files, verified_files):
     """Match raw rent roll files with their corresponding verified files based on filename similarity."""
     if len(raw_files) != len(verified_files):
@@ -545,6 +721,94 @@ def main(raw_files, verified_files, output_diff_dir=None, bypass_rb=False):
             print(f"  {os.path.basename(r['raw_file'])}: {r['accuracy']:.2f}% accuracy")
     
     print("\nVerification process complete for all files.")
+
+async def async_main(raw_files, verified_files, output_diff_dir=None, bypass_rb=False):
+    """Async version of main function to run the verification process for multiple files."""
+    
+    # Validate inputs
+    if not raw_files or not verified_files:
+        print("Error: No files provided")
+        return
+    
+    # Convert to lists if single strings were provided
+    if isinstance(raw_files, str):
+        raw_files = [raw_files]
+    if isinstance(verified_files, str):
+        verified_files = [verified_files]
+    
+    # Check if the number of files match
+    if len(raw_files) != len(verified_files):
+        print(f"Error: Number of raw files ({len(raw_files)}) does not match number of verified files ({len(verified_files)})")
+        print("Please ensure there is one verified file for each raw file.")
+        return
+    
+    # Match raw files with their corresponding verified files
+    file_pairs = match_files(raw_files, verified_files.copy())
+    if not file_pairs:
+        print("Error: Failed to match files")
+        return
+    
+    # Print matched pairs for verification
+    print("\nMatched file pairs:")
+    for raw, verified in file_pairs:
+        print(f"  {os.path.basename(raw)} -> {os.path.basename(verified)}")
+    
+    # Create output directory if needed
+    if output_diff_dir:
+        os.makedirs(output_diff_dir, exist_ok=True)
+    
+    # Process all file pairs concurrently
+    tasks = []
+    for i, (raw_file, verified_file) in enumerate(file_pairs):
+        print(f"\n[{i+1}/{len(file_pairs)}] Queuing file pair:")
+        
+        # Create output diff file path if directory was provided
+        output_diff_file = None
+        if output_diff_dir:
+            output_diff_file = os.path.join(output_diff_dir, f"api_comparison_diff_{os.path.basename(raw_file)}.json")
+        
+        # Create task for processing the file pair
+        task = asyncio.create_task(
+            async_process_single_file(
+                raw_file, 
+                verified_file, 
+                output_diff_file,
+                bypass_rb
+            )
+        )
+        tasks.append((raw_file, verified_file, task))
+    
+    # Wait for all tasks to complete and collect results
+    results = []
+    for raw_file, verified_file, task in tasks:
+        try:
+            accuracy, diffs, merged_df = await task
+            if accuracy is not None:
+                results.append({
+                    "raw_file": raw_file,
+                    "verified_file": verified_file,
+                    "accuracy": accuracy,
+                    "has_diffs": bool(diffs)
+                })
+        except Exception as e:
+            print(f"Error processing {os.path.basename(raw_file)}: {e}")
+    
+    # Print summary
+    print("\n=== Processing Summary ===")
+    print(f"Total file pairs processed: {len(file_pairs)}")
+    print(f"Successful comparisons: {len(results)}")
+    
+    if results:
+        avg_accuracy = sum(r["accuracy"] for r in results) / len(results)
+        print(f"Average accuracy across all files: {avg_accuracy:.2f}%")
+        
+        # Print individual file results
+        print("\nIndividual file results:")
+        for r in results:
+            print(f"  {os.path.basename(r['raw_file'])}: {r['accuracy']:.2f}% accuracy")
+    
+    print("\nVerification process complete for all files.")
+    return results
 
 # --- Streamlit App ---
 def run_streamlit_app():

@@ -26,11 +26,19 @@ Ensure NaN and 0.0 output as correct instead of incorrect.
 Enable batch parallel processing.
 MCP server?
 
-Switch key from tenant to unit_num.
 
 
 
-Run 10 RRs through with bypass LLMs flag and give output .csv to Thejan
 
 
--Add final report JSON file that lists each file, accuracy score, and their number of diffs
+
+
+-calculate the accuracy number without lease start (add checkbox, including unit_type). 
+Default is unit_type/lease start off, all else on
+
+-add second accuracy percentage (just percentage of files that are 100% accurate)
+
+
+
+
+-Make a fast API server with just 1 endpoint (APIV1/webhook), user must input API key, 

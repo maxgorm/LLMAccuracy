@@ -6,3 +6,4 @@ streamlit
 requests
 pdfplumber
 tabula-py
+aiohttp
