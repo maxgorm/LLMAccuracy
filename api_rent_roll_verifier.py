@@ -49,16 +49,33 @@ async def async_check_api_key():
         print("No API key provided. Proceeding without authentication.")
         print("Note: The API may reject requests without proper authentication.")
 
-def submit_job(file_path, doc_type="rent_roll", sheet_name="", bypass_rb=False):
+def submit_job(
+    file_path, 
+    token="", 
+    doc_type="rent_roll", 
+    sheet_name="", 
+    bypass_rb=False,
+    max_n_batch_rows=50,
+    rr_master_llm='claude-3-5-sonnet-20241022',
+    rr_slave_llm='gemini-2.5-flash-preview-05-20',
+    auth_method="api_key"
+):
     """Submit a new job to the API."""
     check_api_key()
     
     url = f"{API_BASE_URL}/jobs"
     
-    # Prepare headers with API key if available
+    # Choose the appropriate authentication header based on auth_method
     headers = {}
-    if API_KEY:
-        headers["X-API-Key"] = API_KEY
+    if auth_method.lower() == "api_key":
+        headers = {"X-API-Key": API_KEY}
+    elif auth_method.lower() == "bearer":
+        token = token.replace('Bearer ', '') if token.startswith('Bearer ') else token
+        headers = {"Authorization": f"Bearer {token}"}
+    else:
+        # Default to API key if available
+        if API_KEY:
+            headers["X-API-Key"] = API_KEY
     
     # Determine file type and set appropriate content type
     file_ext = os.path.splitext(file_path)[1].lower()
@@ -77,7 +94,10 @@ def submit_job(file_path, doc_type="rent_roll", sheet_name="", bypass_rb=False):
     data = {
         'doc_type': doc_type,
         'sheet_name': sheet_name if file_ext != '.pdf' else '',  # Sheet name only applies to Excel files
-        'bypass_rb': bypass_rb  # Add bypass_rb parameter to bypass rules-based approach and always use LLMs
+        'bypass_rb': bypass_rb,  # Add bypass_rb parameter to bypass rules-based approach and always use LLMs
+        'max_n_batch_rows': max_n_batch_rows,
+        'rr_master_llm': rr_master_llm,
+        'rr_slave_llm': rr_slave_llm,
     }
     
     try:
@@ -98,7 +118,7 @@ def submit_job(file_path, doc_type="rent_roll", sheet_name="", bypass_rb=False):
         # Make sure to close the file
         files['file'][1].close()
 
-def fetch_job_results(job_id, max_retries=10, retry_delay=5):
+def fetch_job_results(job_id, max_retries=50, retry_delay=5):
     """Fetch job results, with retry logic for jobs that are still processing."""
     check_api_key()
     
@@ -197,7 +217,7 @@ async def async_submit_job(file_path, doc_type="rent_roll", sheet_name="", bypas
         print(f"Unexpected error submitting job: {e}")
         return None
 
-async def async_fetch_job_results(job_id, max_retries=10, retry_delay=5):
+async def async_fetch_job_results(job_id, max_retries=50, retry_delay=5):
     """Async version of fetch_job_results with retry logic for jobs that are still processing."""
     await async_check_api_key()
     

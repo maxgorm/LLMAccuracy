@@ -197,36 +197,99 @@ def run_streamlit_app():
             api_rent_roll_verifier.API_KEY = api_key if api_key else None
             st.success("API configuration saved!")
     
+    # Define supported models
+    anthropic_models = [
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-haiku-20241022',
+        'claude-3-7-sonnet-latest',
+        'claude-opus-4-20250514',
+        'claude-sonnet-4-20250514'
+    ]
+    openai_models = [
+        'gpt-4o-mini',
+        'gpt-4.1',
+        'gpt-4.1-mini',
+        'gpt-4.1-nano'
+    ]
+    mistral_models = [
+        'mistral-small-latest',
+        'mistral-medium-2505',
+        'magistral-medium-2506'
+    ]
+    google_models = [
+        'gemini-2.0-flash',
+        'gemini-2.5-flash-preview-05-20',
+        'gemini-2.5-pro-preview-06-05'
+    ]
+    
+    # Combine all models for selection
+    all_models = anthropic_models + openai_models + mistral_models + google_models
+    
     # Processing options
     with st.expander("LLM Configuration"):
         bypass_rb = st.checkbox("Bypass Rules-Based Approach", value=True, 
                                help="When checked, the API will always use LLMs instead of the rules-based approach")
         
-        st.info("Note: The API currently does not support specifying different LLMs. This interface is for future use when that feature is available.")
+        max_batch_rows = st.number_input("Max Batch Rows", 
+                                        min_value=1, 
+                                        max_value=200, 
+                                        value=50,
+                                        help="Maximum number of rows to process in each batch")
+        
+        st.info("Configure the LLM models for comparison. The first API call will use the first set of models, and the second API call will use the second set.")
         
         # First API call LLM configuration
         st.subheader("First API Call")
         col1, col2 = st.columns(2)
         with col1:
-            llm1_model1 = st.selectbox("LLM 1 (First API Call)", 
-                                      ["Default", "GPT-4", "Claude 3", "Gemini", "Llama 3"], 
-                                      disabled=True)
+            llm1_master = st.selectbox("Primary LLM (First API Call)", 
+                                      all_models, 
+                                      index=all_models.index('claude-sonnet-4-20250514'),
+                                      help="Primary LLM for processing")
         with col2:
-            llm1_model2 = st.selectbox("LLM 2 (First API Call)", 
-                                      ["Default", "GPT-4", "Claude 3", "Gemini", "Llama 3"], 
-                                      disabled=True)
+            llm1_slave = st.selectbox("Secondary LLM (First API Call)", 
+                                     all_models, 
+                                     index=all_models.index('gemini-2.5-flash-preview-05-20'),
+                                     help="Secondary LLM for verification")
         
         # Second API call LLM configuration
         st.subheader("Second API Call")
         col1, col2 = st.columns(2)
         with col1:
-            llm2_model1 = st.selectbox("LLM 1 (Second API Call)", 
-                                      ["Default", "GPT-4", "Claude 3", "Gemini", "Llama 3"], 
-                                      disabled=True)
+            llm2_master = st.selectbox("Primary LLM (Second API Call)", 
+                                      all_models, 
+                                      index=all_models.index('claude-3-7-sonnet-latest'),
+                                      help="Primary LLM for processing")
         with col2:
-            llm2_model2 = st.selectbox("LLM 2 (Second API Call)", 
-                                      ["Default", "GPT-4", "Claude 3", "Gemini", "Llama 3"], 
-                                      disabled=True)
+            llm2_slave = st.selectbox("Secondary LLM (Second API Call)", 
+                                     all_models, 
+                                     index=all_models.index('gemini-2.0-flash'),
+                                     help="Secondary LLM for verification")
+        
+        # Display current selections
+        st.write("**Current Configuration:**")
+        st.write(f"First API Call: {llm1_master} (master) + {llm1_slave} (slave)")
+        st.write(f"Second API Call: {llm2_master} (master) + {llm2_slave} (slave)")
+    
+    # Show model categories for reference (outside the LLM Configuration expander)
+    with st.expander("Available Models by Provider"):
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.write("**Anthropic Models:**")
+            for model in anthropic_models:
+                st.write(f"• {model}")
+        with col2:
+            st.write("**OpenAI Models:**")
+            for model in openai_models:
+                st.write(f"• {model}")
+        with col3:
+            st.write("**Mistral Models:**")
+            for model in mistral_models:
+                st.write(f"• {model}")
+        with col4:
+            st.write("**Google Models:**")
+            for model in google_models:
+                st.write(f"• {model}")
     
     # File upload
     st.subheader("Upload Rent Roll Files")
@@ -289,7 +352,14 @@ def run_streamlit_app():
                     try:
                         # Step 1: Submit the first job to the API
                         st.write(f"Submitting {file_name} to API (First Call)...")
-                        job_id1 = submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=bypass_rb)
+                        job_id1 = submit_job(file_path, 
+                                           token="", 
+                                           doc_type="rent_roll", 
+                                           sheet_name=sheet_name, 
+                                           bypass_rb=bypass_rb,
+                                           max_n_batch_rows=max_batch_rows,
+                                           rr_master_llm=llm1_master,
+                                           rr_slave_llm=llm1_slave)
                         
                         if not job_id1:
                             st.error(f"Failed to submit first job to API for {file_name}.")
@@ -303,7 +373,7 @@ def run_streamlit_app():
                         file_status_text1 = st.empty()
                         
                         # Set up retry parameters
-                        max_retries = 10
+                        max_retries = 50
                         retry_delay = 5
                         
                         # Implement retry logic with progress updates for first job
@@ -345,7 +415,14 @@ def run_streamlit_app():
                         
                         # Step 3: Submit the second job to the API
                         st.write(f"Submitting {file_name} to API (Second Call)...")
-                        job_id2 = submit_job(file_path, doc_type="rent_roll", sheet_name=sheet_name, bypass_rb=bypass_rb)
+                        job_id2 = submit_job(file_path, 
+                                           token="", 
+                                           doc_type="rent_roll", 
+                                           sheet_name=sheet_name, 
+                                           bypass_rb=bypass_rb,
+                                           max_n_batch_rows=max_batch_rows,
+                                           rr_master_llm=llm2_master,
+                                           rr_slave_llm=llm2_slave)
                         
                         if not job_id2:
                             st.error(f"Failed to submit second job to API for {file_name}.")
@@ -404,7 +481,19 @@ def run_streamlit_app():
                             diff_output = {
                                 "file": file_path,
                                 "accuracy_percent": accuracy,
-                                "field_mismatches": diffs
+                                "field_mismatches": diffs,
+                                "llm_configuration": {
+                                    "first_api_call": {
+                                        "master_llm": llm1_master,
+                                        "slave_llm": llm1_slave
+                                    },
+                                    "second_api_call": {
+                                        "master_llm": llm2_master,
+                                        "slave_llm": llm2_slave
+                                    },
+                                    "max_batch_rows": max_batch_rows,
+                                    "bypass_rb": bypass_rb
+                                }
                             }
                             with open(output_diff_file, 'w') as f:
                                 json.dump(diff_output, f, indent=2, default=str)
@@ -416,7 +505,19 @@ def run_streamlit_app():
                                 "merged_df": merged_df,
                                 "field_stats": field_stats,
                                 "api_output1": api_output1,
-                                "api_output2": api_output2
+                                "api_output2": api_output2,
+                                "llm_config": {
+                                    "first_api_call": {
+                                        "master_llm": llm1_master,
+                                        "slave_llm": llm1_slave
+                                    },
+                                    "second_api_call": {
+                                        "master_llm": llm2_master,
+                                        "slave_llm": llm2_slave
+                                    },
+                                    "max_batch_rows": max_batch_rows,
+                                    "bypass_rb": bypass_rb
+                                }
                             })
                         else:
                             st.error(f"Comparison failed for {file_name}. Check logs for details.")
@@ -447,6 +548,18 @@ def run_streamlit_app():
                     for i, (tab, result) in enumerate(zip(tabs, results)):
                         with tab:
                             st.metric("File Accuracy", f"{result['accuracy']:.2f}%")
+                            
+                            # Display LLM configuration used for this comparison
+                            with st.expander("LLM Configuration Used"):
+                                st.write("**First API Call:**")
+                                st.write(f"• Master LLM: {result['llm_config']['first_api_call']['master_llm']}")
+                                st.write(f"• Slave LLM: {result['llm_config']['first_api_call']['slave_llm']}")
+                                st.write("**Second API Call:**")
+                                st.write(f"• Master LLM: {result['llm_config']['second_api_call']['master_llm']}")
+                                st.write(f"• Slave LLM: {result['llm_config']['second_api_call']['slave_llm']}")
+                                st.write("**Other Settings:**")
+                                st.write(f"• Max Batch Rows: {result['llm_config']['max_batch_rows']}")
+                                st.write(f"• Bypass Rules-Based: {result['llm_config']['bypass_rb']}")
                             
                             # Display per-field accuracy
                             st.subheader("Per-Field Accuracy")
