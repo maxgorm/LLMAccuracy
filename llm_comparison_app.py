@@ -26,11 +26,11 @@ def compare_api_outputs(api_output1, api_output2):
     # Check if API outputs have the expected structure
     if not api_output1 or "df" not in api_output1 or not api_output1["df"]:
         st.error("Error: First API output is empty or not in the expected format.")
-        return None, None, None
+        return None, None, None, None
     
     if not api_output2 or "df" not in api_output2 or not api_output2["df"]:
         st.error("Error: Second API output is empty or not in the expected format.")
-        return None, None, None
+        return None, None, None, None
     
     # Convert API outputs to DataFrames
     df_api1 = pd.DataFrame(api_output1["df"])
@@ -350,8 +350,10 @@ def run_streamlit_app():
                 # Process the file
                 with st.spinner(f"Processing {file_name}..."):
                     try:
-                        # Step 1: Submit the first job to the API
-                        st.write(f"Submitting {file_name} to API (First Call)...")
+                        # Step 1: Submit both jobs to the API simultaneously
+                        st.write(f"Submitting {file_name} to API (Both Calls Simultaneously)...")
+                        
+                        # Submit first job
                         job_id1 = submit_job(file_path, 
                                            token="", 
                                            doc_type="rent_roll", 
@@ -365,56 +367,7 @@ def run_streamlit_app():
                             st.error(f"Failed to submit first job to API for {file_name}.")
                             continue
                         
-                        st.write(f"First job submitted successfully. Job ID: {job_id1}")
-                        
-                        # Step 2: Fetch first job results with progress updates
-                        st.write(f"Fetching results for first API call on {file_name}...")
-                        file_progress_bar1 = st.progress(0)
-                        file_status_text1 = st.empty()
-                        
-                        # Set up retry parameters
-                        max_retries = 50
-                        retry_delay = 5
-                        
-                        # Implement retry logic with progress updates for first job
-                        api_output1 = None
-                        for retry in range(max_retries):
-                            file_status_text1.text(f"Attempt {retry + 1}/{max_retries}: Checking first job status...")
-                            file_progress_bar1.progress((retry + 1) / max_retries)
-                            
-                            # Call the API to check job status
-                            api_output1 = fetch_job_results(job_id1, max_retries=1, retry_delay=0)
-                            
-                            if api_output1 is None:
-                                file_status_text1.text(f"Attempt {retry + 1}/{max_retries}: First API request failed. Retrying...")
-                                time.sleep(retry_delay)
-                                continue
-                            
-                            # Check if job is still processing
-                            if api_output1.get('job', {}).get('status') == 'processing':
-                                file_status_text1.text(f"Attempt {retry + 1}/{max_retries}: First job is still processing. Waiting...")
-                                time.sleep(retry_delay)
-                                continue
-                            
-                            # Job is complete
-                            file_status_text1.text(f"First job completed successfully for {file_name}!")
-                            file_progress_bar1.progress(1.0)
-                            break
-                        else:
-                            # Loop completed without breaking - max retries reached
-                            st.error(f"Maximum retries reached for first job on {file_name}. Job may still be processing.")
-                            continue
-                        
-                        if not api_output1:
-                            st.error(f"Failed to fetch first job results from API for {file_name}.")
-                            continue
-                        
-                        # Save first API output for reference
-                        with open(output_api1_file, 'w') as f:
-                            json.dump(api_output1, f, indent=2)
-                        
-                        # Step 3: Submit the second job to the API
-                        st.write(f"Submitting {file_name} to API (Second Call)...")
+                        # Submit second job immediately after first
                         job_id2 = submit_job(file_path, 
                                            token="", 
                                            doc_type="rent_roll", 
@@ -428,47 +381,103 @@ def run_streamlit_app():
                             st.error(f"Failed to submit second job to API for {file_name}.")
                             continue
                         
-                        st.write(f"Second job submitted successfully. Job ID: {job_id2}")
+                        st.write(f"Both jobs submitted successfully. Job IDs: {job_id1}, {job_id2}")
                         
-                        # Step 4: Fetch second job results with progress updates
-                        st.write(f"Fetching results for second API call on {file_name}...")
-                        file_progress_bar2 = st.progress(0)
-                        file_status_text2 = st.empty()
+                        # Step 2: Monitor both jobs simultaneously
+                        st.write(f"Monitoring both API calls for {file_name}...")
                         
-                        # Implement retry logic with progress updates for second job
+                        # Create progress tracking for both jobs
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write("**First API Call Progress:**")
+                            file_progress_bar1 = st.progress(0)
+                            file_status_text1 = st.empty()
+                        with col2:
+                            st.write("**Second API Call Progress:**")
+                            file_progress_bar2 = st.progress(0)
+                            file_status_text2 = st.empty()
+                        
+                        # Set up retry parameters
+                        max_retries = 50
+                        retry_delay = 5
+                        
+                        # Track completion status
+                        api_output1 = None
                         api_output2 = None
+                        job1_complete = False
+                        job2_complete = False
+                        
+                        # Monitor both jobs simultaneously
                         for retry in range(max_retries):
-                            file_status_text2.text(f"Attempt {retry + 1}/{max_retries}: Checking second job status...")
-                            file_progress_bar2.progress((retry + 1) / max_retries)
+                            # Check first job if not complete
+                            if not job1_complete:
+                                file_status_text1.text(f"Attempt {retry + 1}/{max_retries}: Checking first job status...")
+                                file_progress_bar1.progress((retry + 1) / max_retries)
+                                
+                                temp_output1 = fetch_job_results(job_id1, max_retries=1, retry_delay=0)
+                                
+                                if temp_output1 is not None:
+                                    if temp_output1.get('job', {}).get('status') != 'processing':
+                                        # Job is complete
+                                        api_output1 = temp_output1
+                                        job1_complete = True
+                                        file_status_text1.text(f"First job completed successfully!")
+                                        file_progress_bar1.progress(1.0)
+                                    else:
+                                        file_status_text1.text(f"First job still processing...")
+                                else:
+                                    file_status_text1.text(f"First job status check failed, retrying...")
                             
-                            # Call the API to check job status
-                            api_output2 = fetch_job_results(job_id2, max_retries=1, retry_delay=0)
+                            # Check second job if not complete
+                            if not job2_complete:
+                                file_status_text2.text(f"Attempt {retry + 1}/{max_retries}: Checking second job status...")
+                                file_progress_bar2.progress((retry + 1) / max_retries)
+                                
+                                temp_output2 = fetch_job_results(job_id2, max_retries=1, retry_delay=0)
+                                
+                                if temp_output2 is not None:
+                                    if temp_output2.get('job', {}).get('status') != 'processing':
+                                        # Job is complete
+                                        api_output2 = temp_output2
+                                        job2_complete = True
+                                        file_status_text2.text(f"Second job completed successfully!")
+                                        file_progress_bar2.progress(1.0)
+                                    else:
+                                        file_status_text2.text(f"Second job still processing...")
+                                else:
+                                    file_status_text2.text(f"Second job status check failed, retrying...")
                             
-                            if api_output2 is None:
-                                file_status_text2.text(f"Attempt {retry + 1}/{max_retries}: Second API request failed. Retrying...")
-                                time.sleep(retry_delay)
-                                continue
+                            # If both jobs are complete, break out of the loop
+                            if job1_complete and job2_complete:
+                                st.success(f"Both jobs completed successfully for {file_name}!")
+                                break
                             
-                            # Check if job is still processing
-                            if api_output2.get('job', {}).get('status') == 'processing':
-                                file_status_text2.text(f"Attempt {retry + 1}/{max_retries}: Second job is still processing. Waiting...")
-                                time.sleep(retry_delay)
-                                continue
-                            
-                            # Job is complete
-                            file_status_text2.text(f"Second job completed successfully for {file_name}!")
-                            file_progress_bar2.progress(1.0)
-                            break
+                            # Wait before next check
+                            time.sleep(retry_delay)
                         else:
-                            # Loop completed without breaking - max retries reached
-                            st.error(f"Maximum retries reached for second job on {file_name}. Job may still be processing.")
+                            # Loop completed without both jobs finishing
+                            if not job1_complete:
+                                st.error(f"Maximum retries reached for first job on {file_name}. Job may still be processing.")
+                            if not job2_complete:
+                                st.error(f"Maximum retries reached for second job on {file_name}. Job may still be processing.")
+                            
+                            # Continue to next file if either job failed
+                            if not (job1_complete and job2_complete):
+                                continue
+                        
+                        # Verify we have both outputs
+                        if not api_output1:
+                            st.error(f"Failed to fetch first job results from API for {file_name}.")
                             continue
                         
                         if not api_output2:
                             st.error(f"Failed to fetch second job results from API for {file_name}.")
                             continue
                         
-                        # Save second API output for reference
+                        # Save both API outputs for reference
+                        with open(output_api1_file, 'w') as f:
+                            json.dump(api_output1, f, indent=2)
+                        
                         with open(output_api2_file, 'w') as f:
                             json.dump(api_output2, f, indent=2)
                         
@@ -552,11 +561,11 @@ def run_streamlit_app():
                             # Display LLM configuration used for this comparison
                             with st.expander("LLM Configuration Used"):
                                 st.write("**First API Call:**")
-                                st.write(f"• Master LLM: {result['llm_config']['first_api_call']['master_llm']}")
-                                st.write(f"• Slave LLM: {result['llm_config']['first_api_call']['slave_llm']}")
+                                st.write(f"• Primary LLM: {result['llm_config']['first_api_call']['master_llm']}")
+                                st.write(f"• Secondary LLM: {result['llm_config']['first_api_call']['slave_llm']}")
                                 st.write("**Second API Call:**")
-                                st.write(f"• Master LLM: {result['llm_config']['second_api_call']['master_llm']}")
-                                st.write(f"• Slave LLM: {result['llm_config']['second_api_call']['slave_llm']}")
+                                st.write(f"• Primary LLM: {result['llm_config']['second_api_call']['master_llm']}")
+                                st.write(f"• Secondary LLM: {result['llm_config']['second_api_call']['slave_llm']}")
                                 st.write("**Other Settings:**")
                                 st.write(f"• Max Batch Rows: {result['llm_config']['max_batch_rows']}")
                                 st.write(f"• Bypass Rules-Based: {result['llm_config']['bypass_rb']}")
