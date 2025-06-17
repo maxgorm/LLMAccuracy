@@ -399,7 +399,7 @@ def run_streamlit_app():
                         
                         # Set up retry parameters
                         max_retries = 50
-                        retry_delay = 5
+                        retry_delay = 10
                         
                         # Track completion status
                         api_output1 = None
