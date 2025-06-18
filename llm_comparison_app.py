@@ -27,7 +27,7 @@ def compare_api_outputs_3way(api_output1, api_output2, api_output3):
     for i, api_output in enumerate([api_output1, api_output2, api_output3], 1):
         if not api_output or "df" not in api_output or not api_output["df"]:
             st.error(f"Error: API output {i} is empty or not in the expected format.")
-            return None, None, None, None
+            return None
     
     # Convert API outputs to DataFrames
     df_api1 = pd.DataFrame(api_output1["df"])
