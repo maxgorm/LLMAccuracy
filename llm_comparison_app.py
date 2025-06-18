@@ -769,6 +769,30 @@ def run_streamlit_app():
                         
                         # Step 5: Compare API outputs
                         st.write(f"Comparing API outputs for {file_name}...")
+                        
+                        # Debug: Check API output structures
+                        st.write("**Debug Information:**")
+                        for i, api_output in enumerate([api_output1, api_output2, api_output3 if comparison_mode == "3-Way Comparison" else None], 1):
+                            if api_output is not None:
+                                if isinstance(api_output, dict):
+                                    has_df = "df" in api_output
+                                    df_content = api_output.get("df", "No 'df' key")
+                                    if has_df and api_output["df"]:
+                                        df_len = len(api_output["df"]) if isinstance(api_output["df"], list) else "Not a list"
+                                        st.write(f"API Output {i}: Has 'df' key: {has_df}, df length: {df_len}")
+                                    else:
+                                        st.write(f"API Output {i}: Has 'df' key: {has_df}, df content: {type(df_content)}")
+                                        if has_df:
+                                            st.write(f"API Output {i} df value: {df_content}")
+                                else:
+                                    st.write(f"API Output {i}: Not a dictionary, type: {type(api_output)}")
+                                
+                                # Show the keys in the API output
+                                if isinstance(api_output, dict):
+                                    st.write(f"API Output {i} keys: {list(api_output.keys())}")
+                            else:
+                                st.write(f"API Output {i}: None")
+                        
                         if comparison_mode == "2-Way Comparison":
                             comparison_result = compare_api_outputs(api_output1, api_output2)
                             accuracy, diffs, merged_df, field_stats = comparison_result
@@ -889,7 +913,8 @@ def run_streamlit_app():
                         st.text(traceback.format_exc())
                 
                 # Update progress
-                progress_bar.progress((i + 1) / len(temp_paths))
+                progress_value = min(1.0, (i + 1) / len(temp_paths))
+                progress_bar.progress(progress_value)
             
             # Complete progress bar
             progress_bar.progress(1.0)
