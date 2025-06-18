@@ -11,7 +11,6 @@ import io
 
 #This file is used to compare RRs API output with verified output
 
-# Import the API script functions
 from api_rent_roll_verifier import (
     process_single_file,
     match_files,
