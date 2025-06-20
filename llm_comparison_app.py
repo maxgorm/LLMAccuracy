@@ -20,6 +20,47 @@ from api_rent_roll_verifier import (
     API_KEY
 )
 
+def calculate_total_cost(api_output):
+    """Calculate total cost from llm_token_info array in API output."""
+    if not api_output or not isinstance(api_output, dict):
+        return 0.0, []
+    
+    # Check if we have job data
+    job_data = api_output.get('job', {})
+    if not isinstance(job_data, dict):
+        return 0.0, []
+    
+    # Try to get the pre-calculated total_cost first
+    total_cost = job_data.get('total_cost', 0.0)
+    
+    # Get the llm_token_info from the job object
+    llm_token_info = job_data.get('llm_token_info', [])
+    if not llm_token_info or not isinstance(llm_token_info, list):
+        return float(total_cost), []
+    
+    # Create breakdown from individual token info entries
+    cost_breakdown = []
+    calculated_total = 0.0
+    
+    for token_info in llm_token_info:
+        if isinstance(token_info, dict) and 'cost' in token_info:
+            cost = float(token_info.get('cost', 0))
+            calculated_total += cost
+            
+            # Create breakdown entry
+            breakdown_entry = {
+                'model': token_info.get('model', 'Unknown'),
+                'cost': cost,
+                'in_tokens': token_info.get('in_tokens', 0),
+                'out_tokens': token_info.get('out_tokens', 0)
+            }
+            cost_breakdown.append(breakdown_entry)
+    
+    # Use the pre-calculated total if available, otherwise use our calculated total
+    final_total = float(total_cost) if total_cost > 0 else calculated_total
+    
+    return final_total, cost_breakdown
+
 def compare_api_outputs_3way(api_output1, api_output2, api_output3):
     """Compares three API outputs and returns the differences with consensus analysis."""
     
@@ -189,6 +230,11 @@ def compare_api_outputs_3way(api_output1, api_output2, api_output3):
         percentage = round(100 * count / majority_agreement, 2) if majority_agreement > 0 else 0
         st.write(f"{api.upper()} was the outlier: {count} times ({percentage}% of majority cases)")
     
+    # Calculate costs for each API output
+    cost1, breakdown1 = calculate_total_cost(api_output1)
+    cost2, breakdown2 = calculate_total_cost(api_output2)
+    cost3, breakdown3 = calculate_total_cost(api_output3)
+    
     return {
         "perfect_accuracy": perfect_accuracy,
         "majority_accuracy": majority_accuracy,
@@ -199,7 +245,14 @@ def compare_api_outputs_3way(api_output1, api_output2, api_output3):
         "total_comparisons": total_comparisons,
         "perfect_agreement": perfect_agreement,
         "majority_agreement": majority_agreement,
-        "complete_disagreement": complete_disagreement
+        "complete_disagreement": complete_disagreement,
+        "api1_cost": cost1,
+        "api1_cost_breakdown": breakdown1,
+        "api2_cost": cost2,
+        "api2_cost_breakdown": breakdown2,
+        "api3_cost": cost3,
+        "api3_cost_breakdown": breakdown3,
+        "total_cost": cost1 + cost2 + cost3
     }
 
 def compare_api_outputs(api_output1, api_output2):
@@ -357,7 +410,11 @@ def compare_api_outputs(api_output1, api_output2):
             "mismatches": field_mismatches
         }
     
-    return accuracy, diffs, merged, field_stats
+    # Calculate costs for each API output
+    cost1, breakdown1 = calculate_total_cost(api_output1)
+    cost2, breakdown2 = calculate_total_cost(api_output2)
+    
+    return accuracy, diffs, merged, field_stats, cost1, breakdown1, cost2, breakdown2, cost1 + cost2
 
 def run_streamlit_app():
     """Main Streamlit app function for LLM comparison"""
@@ -411,8 +468,8 @@ def run_streamlit_app():
     ]
     google_models = [
         'gemini-2.0-flash',
-        'gemini-2.5-flash-preview-05-20',
-        'gemini-2.5-pro-preview-06-05'
+        'gemini-2.5-flash',
+        'gemini-2.5-pro'
     ]
     
     # Combine all models for selection
@@ -442,7 +499,7 @@ def run_streamlit_app():
         with col2:
             llm1_slave = st.selectbox("Secondary LLM (First API Call)", 
                                      all_models, 
-                                     index=all_models.index('gemini-2.5-flash-preview-05-20'),
+                                     index=all_models.index('gemini-2.5-flash'),
                                      help="Secondary LLM for verification")
         
         # Second API call LLM configuration
@@ -451,12 +508,12 @@ def run_streamlit_app():
         with col1:
             llm2_master = st.selectbox("Primary LLM (Second API Call)", 
                                       all_models, 
-                                      index=all_models.index('claude-3-7-sonnet-latest'),
+                                      index=all_models.index('claude-sonnet-4-20250514'),
                                       help="Primary LLM for processing")
         with col2:
             llm2_slave = st.selectbox("Secondary LLM (Second API Call)", 
                                      all_models, 
-                                     index=all_models.index('gemini-2.0-flash'),
+                                     index=all_models.index('gemini-2.5-flash'),
                                      help="Secondary LLM for verification")
         
         # Third API call LLM configuration (only show for 3-way comparison)
@@ -466,12 +523,12 @@ def run_streamlit_app():
             with col1:
                 llm3_master = st.selectbox("Primary LLM (Third API Call)", 
                                           all_models, 
-                                          index=all_models.index('gpt-4o-mini'),
+                                          index=all_models.index('claude-sonnet-4-20250514'),
                                           help="Primary LLM for processing")
             with col2:
                 llm3_slave = st.selectbox("Secondary LLM (Third API Call)", 
                                          all_models, 
-                                         index=all_models.index('mistral-small-latest'),
+                                         index=all_models.index('gemini-2.5-flash'),
                                          help="Secondary LLM for verification")
         
         # Display current selections
@@ -651,7 +708,7 @@ def run_streamlit_app():
                         
                         # Set up retry parameters
                         max_retries = 50
-                        retry_delay = 10
+                        retry_delay = 15
                         
                         # Track completion status
                         api_output1 = None
@@ -795,7 +852,7 @@ def run_streamlit_app():
                         
                         if comparison_mode == "2-Way Comparison":
                             comparison_result = compare_api_outputs(api_output1, api_output2)
-                            accuracy, diffs, merged_df, field_stats = comparison_result
+                            accuracy, diffs, merged_df, field_stats, cost1, breakdown1, cost2, breakdown2, total_cost = comparison_result
                             
                             if accuracy is not None:
                                 # Save detailed differences for 2-way
@@ -827,6 +884,11 @@ def run_streamlit_app():
                                     "field_stats": field_stats,
                                     "api_output1": api_output1,
                                     "api_output2": api_output2,
+                                    "api1_cost": cost1,
+                                    "api1_cost_breakdown": breakdown1,
+                                    "api2_cost": cost2,
+                                    "api2_cost_breakdown": breakdown2,
+                                    "total_cost": total_cost,
                                     "llm_config": {
                                         "first_api_call": {
                                             "master_llm": llm1_master,
@@ -883,6 +945,13 @@ def run_streamlit_app():
                                     "api_output1": api_output1,
                                     "api_output2": api_output2,
                                     "api_output3": api_output3,
+                                    "api1_cost": comparison_result["api1_cost"],
+                                    "api1_cost_breakdown": comparison_result["api1_cost_breakdown"],
+                                    "api2_cost": comparison_result["api2_cost"],
+                                    "api2_cost_breakdown": comparison_result["api2_cost_breakdown"],
+                                    "api3_cost": comparison_result["api3_cost"],
+                                    "api3_cost_breakdown": comparison_result["api3_cost_breakdown"],
+                                    "total_cost": comparison_result["total_cost"],
                                     "llm_config": {
                                         "first_api_call": {
                                             "master_llm": llm1_master,
@@ -944,13 +1013,71 @@ def run_streamlit_app():
                     for i, (tab, result) in enumerate(zip(tabs, results)):
                         with tab:
                             if result["comparison_mode"] == "2-way":
-                                st.metric("File Accuracy", f"{result['accuracy']:.2f}%")
-                            else:
                                 col1, col2 = st.columns(2)
+                                with col1:
+                                    st.metric("File Accuracy", f"{result['accuracy']:.2f}%")
+                                with col2:
+                                    st.metric("Total Cost", f"${result['total_cost']}")
+                            else:
+                                col1, col2, col3 = st.columns(3)
                                 with col1:
                                     st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
                                 with col2:
                                     st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
+                                with col3:
+                                    st.metric("Total Cost", f"${result['total_cost']}")
+                            
+                            # Display cost breakdown
+                            with st.expander("Cost Breakdown"):
+                                if result["comparison_mode"] == "2-way":
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.write("**First API Call Cost:**")
+                                        st.write(f"Total: ${result['api1_cost']}")
+                                        if result['api1_cost_breakdown']:
+                                            for breakdown in result['api1_cost_breakdown']:
+                                                st.write(f"• {breakdown['model']}: ${breakdown['cost']} ({breakdown['in_tokens']} in, {breakdown['out_tokens']} out)")
+                                        else:
+                                            st.write("No cost data available")
+                                    
+                                    with col2:
+                                        st.write("**Second API Call Cost:**")
+                                        st.write(f"Total: ${result['api2_cost']}")
+                                        if result['api2_cost_breakdown']:
+                                            for breakdown in result['api2_cost_breakdown']:
+                                                st.write(f"• {breakdown['model']}: ${breakdown['cost']} ({breakdown['in_tokens']} in, {breakdown['out_tokens']} out)")
+                                        else:
+                                            st.write("No cost data available")
+                                else:
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        st.write("**First API Call Cost:**")
+                                        st.write(f"Total: ${result['api1_cost']}")
+                                        if result['api1_cost_breakdown']:
+                                            for breakdown in result['api1_cost_breakdown']:
+                                                st.write(f"• {breakdown['model']}: ${breakdown['cost']} ({breakdown['in_tokens']} in, {breakdown['out_tokens']} out)")
+                                        else:
+                                            st.write("No cost data available")
+                                    
+                                    with col2:
+                                        st.write("**Second API Call Cost:**")
+                                        st.write(f"Total: ${result['api2_cost']}")
+                                        if result['api2_cost_breakdown']:
+                                            for breakdown in result['api2_cost_breakdown']:
+                                                st.write(f"• {breakdown['model']}: ${breakdown['cost']} ({breakdown['in_tokens']} in, {breakdown['out_tokens']} out)")
+                                        else:
+                                            st.write("No cost data available")
+                                    
+                                    with col3:
+                                        st.write("**Third API Call Cost:**")
+                                        st.write(f"Total: ${result['api3_cost']}")
+                                        if result['api3_cost_breakdown']:
+                                            for breakdown in result['api3_cost_breakdown']:
+                                                st.write(f"• {breakdown['model']}: ${breakdown['cost']} ({breakdown['in_tokens']} in, {breakdown['out_tokens']} out)")
+                                        else:
+                                            st.write("No cost data available")
+                                
+                                st.write(f"**Combined Total Cost: ${result['total_cost']}**")
                             
                             # Display LLM configuration used for this comparison
                             with st.expander("LLM Configuration Used"):
@@ -993,6 +1120,11 @@ def run_streamlit_app():
                                         })
                                 
                                 if all_mismatches:
+                                    # Convert all values to strings to avoid Arrow serialization issues
+                                    for mismatch in all_mismatches:
+                                        mismatch["API Call 1 Value"] = str(mismatch["API Call 1 Value"]) if mismatch["API Call 1 Value"] is not None else "None"
+                                        mismatch["API Call 2 Value"] = str(mismatch["API Call 2 Value"]) if mismatch["API Call 2 Value"] is not None else "None"
+                                    
                                     mismatches_df = pd.DataFrame(all_mismatches)
                                     st.dataframe(mismatches_df)
                                     
@@ -1057,6 +1189,12 @@ def run_streamlit_app():
                                         all_consensus_mismatches.append(mismatch_row)
                                 
                                 if all_consensus_mismatches:
+                                    # Convert all values to strings to avoid Arrow serialization issues
+                                    for mismatch in all_consensus_mismatches:
+                                        mismatch["API Call 1 Value"] = str(mismatch["API Call 1 Value"]) if mismatch["API Call 1 Value"] is not None else "None"
+                                        mismatch["API Call 2 Value"] = str(mismatch["API Call 2 Value"]) if mismatch["API Call 2 Value"] is not None else "None"
+                                        mismatch["API Call 3 Value"] = str(mismatch["API Call 3 Value"]) if mismatch["API Call 3 Value"] is not None else "None"
+                                    
                                     consensus_df = pd.DataFrame(all_consensus_mismatches)
                                     st.dataframe(consensus_df)
                                     
