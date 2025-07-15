@@ -56,8 +56,9 @@ def submit_job(
     sheet_name="", 
     bypass_rb=False,
     max_n_batch_rows=50,
-    rr_master_llm='claude-3-5-sonnet-20241022',
-    rr_slave_llm='gemini-2.5-flash-preview-05-20',
+    rr_master_llm='claude-sonnet-4-20250514',
+    rr_slave_llm='gemini-2.5-flash',
+    n_batch_llm_calls=3,
     auth_method="api_key"
 ):
     """Submit a new job to the API."""
@@ -98,6 +99,7 @@ def submit_job(
         'max_n_batch_rows': max_n_batch_rows,
         'rr_master_llm': rr_master_llm,
         'rr_slave_llm': rr_slave_llm,
+        'n_batch_llm_calls': n_batch_llm_calls,
     }
     
     try:
@@ -268,11 +270,116 @@ async def async_fetch_job_results(job_id, max_retries=50, retry_delay=5):
 
 # --- Helper Functions ---
 
+def extract_batch_results(api_output, n_batch_calls=3):
+    """Extract individual results from a batch API response with n_batch_llm_calls."""
+    if not api_output:
+        return None
+    
+    # Check if this is a batch response with multiple results
+    if 'results' in api_output and isinstance(api_output['results'], list):
+        # New batch format - results are in a 'results' array
+        results = api_output['results']
+        if len(results) != n_batch_calls:
+            print(f"Warning: Expected {n_batch_calls} results but got {len(results)}")
+        
+        # Convert each result to the expected format
+        extracted_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, dict) and 'df' in result:
+                extracted_results.append(result)
+            else:
+                print(f"Warning: Result {i+1} does not have expected 'df' structure")
+                extracted_results.append({"df": []})
+        
+        return extracted_results
+    
+    elif 'df' in api_output:
+        # Check if the df contains multiple batches (legacy format)
+        df_data = api_output['df']
+        if isinstance(df_data, list) and len(df_data) > 0:
+            # For now, assume single result format and replicate it
+            # This is a fallback - the API should return proper batch format
+            print("Warning: API response appears to be single result format, not batch format")
+            single_result = {"df": df_data, "job": api_output.get("job", {})}
+            return [single_result] * n_batch_calls
+    
+    print("Error: API response does not contain expected batch results structure")
+    return None
+
 def normalize_value(value):
     """Normalizes values for comparison (string, lowercase, strip whitespace)."""
     if pd.isna(value):
         return ""  # Treat NaN/None as empty string for comparison
     return str(value).strip().lower()
+
+def normalize_unit_num(value):
+    """Normalizes unit numbers to handle formatting differences like dashes vs spaces."""
+    if pd.isna(value):
+        return ""
+    
+    # Convert to string and clean up
+    unit_str = str(value).strip()
+    
+    # Replace multiple spaces with single space, replace dashes with spaces
+    import re
+    unit_str = re.sub(r'\s+', ' ', unit_str)  # Multiple spaces to single space
+    unit_str = re.sub(r'-+', ' ', unit_str)   # Dashes to spaces
+    
+    # Remove extra whitespace and convert to lowercase for comparison
+    return unit_str.strip().lower()
+
+def normalize_unit_type(value):
+    """Normalizes unit types to handle suffix differences (e.g., '1/1' vs '1/1-645')."""
+    if pd.isna(value):
+        return ""
+    
+    # Convert to string and clean up
+    unit_type_str = str(value).strip()
+    
+    # Extract the base unit type (everything before the first dash)
+    if '-' in unit_type_str:
+        unit_type_str = unit_type_str.split('-')[0]
+    
+    # Remove extra whitespace and convert to lowercase for comparison
+    return unit_type_str.strip().lower()
+
+def normalize_tenant(value):
+    """Normalizes tenant values to handle different vacant unit representations."""
+    if pd.isna(value):
+        return "vacant"
+    
+    # Convert to string and clean up
+    tenant_str = str(value).strip().lower()
+    
+    # Handle different vacant representations
+    vacant_indicators = [
+        "none",
+        "<<<vacant-assigned>>>",
+        "<<<vacant-unassigned>>>",
+        "vacant",
+        "vacant-assigned",
+        "vacant-unassigned",
+        "",
+        "nan"
+    ]
+    
+    # If the value matches any vacant indicator, normalize to "vacant"
+    if tenant_str in vacant_indicators:
+        return "vacant"
+    
+    # Otherwise return the normalized string
+    return tenant_str
+
+def normalize_field_value(field, value):
+    """Apply field-specific normalization based on the field type."""
+    if field == 'unit_num':
+        return normalize_unit_num(value)
+    elif field == 'unit_type':
+        return normalize_unit_type(value)
+    elif field == 'tenant':
+        return normalize_tenant(value)
+    else:
+        return normalize_value(value)
 
 def compare_data(api_output, verified_file_path):
     """Compares API JSON output with the verified Excel file."""
@@ -394,19 +501,12 @@ def compare_data(api_output, verified_file_path):
                 val_api = row.get(field_api)
                 val_verified = row.get(field_verified)
 
-                # Normalize for comparison
-                norm_api = normalize_value(val_api)
-                norm_verified = normalize_value(val_verified)
+                # Use field-specific normalization for comparison
+                norm_api = normalize_field_value(field, val_api)
+                norm_verified = normalize_field_value(field, val_verified)
 
-                # Special handling for unit_num field - ignore formatting differences (dashes vs spaces)
-                if field == 'unit_num':
-                    # Remove all non-alphanumeric characters for comparison
-                    clean_api = re.sub(r'[^a-z0-9]', '', norm_api)
-                    clean_verified = re.sub(r'[^a-z0-9]', '', norm_verified)
-                    is_match = (clean_api == clean_verified)
-                    
                 # Special handling for tenant field - consider "None" equivalent to vacant indicators
-                elif field == 'tenant':
+                if field == 'tenant':
                     # Check if API value is None/nan and verified is a vacant indicator
                     if (norm_api in ['none', ''] and 
                         ('vacant' in norm_verified or norm_verified in ['', 'nan'])):

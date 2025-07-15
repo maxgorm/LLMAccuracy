@@ -1,0 +1,19 @@
+{
+  "processing_summary": {
+    "total_files": 1,
+    "successful_files": 1,
+    "failed_files": 0,
+    "comparison_mode": "3-Way Comparison",
+    "timestamp": "2025-07-15 12:31:09"
+  },
+  "individual_results": [
+    {
+      "file": "Saddlebrook I RR 02-23-24 (3).xlsx",
+      "comparison_mode": "3-way",
+      "total_cost": 0.6489,
+      "perfect_accuracy": 100.0,
+      "majority_accuracy": 100.0,
+      "rules_based_accuracy": 85.54
+    }
+  ]
+}

@@ -1,0 +1,520 @@
+{
+  "file": "C:\\Users\\maxgo\\AppData\\Local\\Temp\\tmp349c98ue\\Saddlebrook I RR 02-23-24 (3).xlsx",
+  "comparison_mode": "3-way",
+  "perfect_accuracy_percent": 100.0,
+  "majority_accuracy_percent": 100.0,
+  "consensus_data": {},
+  "field_consensus_stats": {
+    "unit_num": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "unit_type": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "sqft": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "br": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "bath": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "tenant": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "move_in": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "lease_start": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "lease_end": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "rent_charge": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "rent_gov_subsidy": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "is_mtm": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "mtm_charge": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "rent_market": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    }
+  },
+  "api_outlier_count": {
+    "api1": 0,
+    "api2": 0,
+    "api3": 0
+  },
+  "llm_configuration": {
+    "master_llm": "claude-sonnet-4-20250514",
+    "slave_llm": "gemini-2.5-flash",
+    "n_batch_llm_calls": 3,
+    "max_batch_rows": 50,
+    "bypass_rb": true
+  },
+  "rules_based_enabled": true,
+  "rules_based_accuracy_percent": 85.54,
+  "rules_based_mismatches": {
+    "unit_num": [
+      {
+        "key": 0,
+        "api_value": "604-101",
+        "rules_value": "604   101"
+      },
+      {
+        "key": 1,
+        "api_value": "604-102",
+        "rules_value": "604   102"
+      },
+      {
+        "key": 2,
+        "api_value": "604-103",
+        "rules_value": "604   103"
+      },
+      {
+        "key": 3,
+        "api_value": "604-104",
+        "rules_value": "604   104"
+      },
+      {
+        "key": 4,
+        "api_value": "604-105",
+        "rules_value": "604   105"
+      },
+      {
+        "key": 5,
+        "api_value": "604-106",
+        "rules_value": "604   106"
+      },
+      {
+        "key": 6,
+        "api_value": "604-107",
+        "rules_value": "604   107"
+      },
+      {
+        "key": 7,
+        "api_value": "604-108",
+        "rules_value": "604   108"
+      },
+      {
+        "key": 8,
+        "api_value": "604-201",
+        "rules_value": "604   201"
+      },
+      {
+        "key": 9,
+        "api_value": "604-202",
+        "rules_value": "604   202"
+      },
+      {
+        "key": 10,
+        "api_value": "604-203",
+        "rules_value": "604   203"
+      },
+      {
+        "key": 11,
+        "api_value": "604-204",
+        "rules_value": "604   204"
+      },
+      {
+        "key": 12,
+        "api_value": "604-205",
+        "rules_value": "604   205"
+      },
+      {
+        "key": 13,
+        "api_value": "604-206",
+        "rules_value": "604   206"
+      },
+      {
+        "key": 14,
+        "api_value": "604-207",
+        "rules_value": "604   207"
+      },
+      {
+        "key": 15,
+        "api_value": "604-208",
+        "rules_value": "604   208"
+      },
+      {
+        "key": 16,
+        "api_value": "604-209",
+        "rules_value": "604   209"
+      },
+      {
+        "key": 17,
+        "api_value": "604-210",
+        "rules_value": "604   210"
+      },
+      {
+        "key": 18,
+        "api_value": "604-211",
+        "rules_value": "604   211"
+      },
+      {
+        "key": 19,
+        "api_value": "604-212",
+        "rules_value": "604   212"
+      },
+      {
+        "key": 20,
+        "api_value": "604-213",
+        "rules_value": "604   213"
+      },
+      {
+        "key": 21,
+        "api_value": "604-214",
+        "rules_value": "604   214"
+      },
+      {
+        "key": 22,
+        "api_value": "604-215",
+        "rules_value": "604   215"
+      },
+      {
+        "key": 23,
+        "api_value": "604-216",
+        "rules_value": "604   216"
+      },
+      {
+        "key": 24,
+        "api_value": "604-301",
+        "rules_value": "604   301"
+      },
+      {
+        "key": 25,
+        "api_value": "604-302",
+        "rules_value": "604   302"
+      },
+      {
+        "key": 26,
+        "api_value": "604-303",
+        "rules_value": "604   303"
+      },
+      {
+        "key": 27,
+        "api_value": "604-304",
+        "rules_value": "604   304"
+      },
+      {
+        "key": 28,
+        "api_value": "604-305",
+        "rules_value": "604   305"
+      },
+      {
+        "key": 29,
+        "api_value": "604-306",
+        "rules_value": "604   306"
+      },
+      {
+        "key": 30,
+        "api_value": "604-307",
+        "rules_value": "604   307"
+      },
+      {
+        "key": 31,
+        "api_value": "604-308",
+        "rules_value": "604   308"
+      },
+      {
+        "key": 32,
+        "api_value": "604-309",
+        "rules_value": "604   309"
+      },
+      {
+        "key": 33,
+        "api_value": "604-310",
+        "rules_value": "604   310"
+      },
+      {
+        "key": 34,
+        "api_value": "604-311",
+        "rules_value": "604   311"
+      },
+      {
+        "key": 35,
+        "api_value": "604-312",
+        "rules_value": "604   312"
+      },
+      {
+        "key": 36,
+        "api_value": "604-313",
+        "rules_value": "604   313"
+      },
+      {
+        "key": 37,
+        "api_value": "604-314",
+        "rules_value": "604   314"
+      },
+      {
+        "key": 38,
+        "api_value": "604-315",
+        "rules_value": "604   315"
+      },
+      {
+        "key": 39,
+        "api_value": "604-316",
+        "rules_value": "604   316"
+      }
+    ],
+    "unit_type": [
+      {
+        "key": 0,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 1,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 2,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 3,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 4,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 5,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 6,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 7,
+        "api_value": "3/2",
+        "rules_value": "3/2-1066"
+      },
+      {
+        "key": 8,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 9,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 10,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 11,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 12,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 13,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 14,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 15,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 16,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 17,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 18,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 19,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 20,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 21,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 22,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 23,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 24,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 25,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 26,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 27,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 28,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 29,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 30,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 31,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 32,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 33,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 34,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 35,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 36,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 37,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 38,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 39,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      }
+    ],
+    "tenant": [
+      {
+        "key": 35,
+        "api_value": "VACANT",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      }
+    ]
+  }
+}

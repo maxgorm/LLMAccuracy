@@ -1,0 +1,19 @@
+{
+  "processing_summary": {
+    "total_files": 1,
+    "successful_files": 1,
+    "failed_files": 0,
+    "comparison_mode": "3-Way Comparison",
+    "timestamp": "2025-07-15 12:08:13"
+  },
+  "individual_results": [
+    {
+      "file": "Vann Park RR I 02-23-24.xlsx",
+      "comparison_mode": "3-way",
+      "total_cost": 0.6684,
+      "perfect_accuracy": 100.0,
+      "majority_accuracy": 100.0,
+      "rules_based_accuracy": 84.42
+    }
+  ]
+}

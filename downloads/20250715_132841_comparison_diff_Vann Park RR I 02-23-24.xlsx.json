@@ -1,0 +1,151 @@
+{
+  "file": "C:\\Users\\maxgo\\AppData\\Local\\Temp\\tmpbjcjdg2a\\Vann Park RR I 02-23-24.xlsx",
+  "comparison_mode": "3-way",
+  "perfect_accuracy_percent": 100.0,
+  "majority_accuracy_percent": 100.0,
+  "consensus_data": {},
+  "field_consensus_stats": {
+    "unit_num": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "unit_type": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "sqft": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "br": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "bath": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "tenant": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "move_in": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "lease_start": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "lease_end": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "rent_charge": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "rent_gov_subsidy": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "is_mtm": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "mtm_charge": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    },
+    "rent_market": {
+      "perfect": 44,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 44
+    }
+  },
+  "api_outlier_count": {
+    "api1": 0,
+    "api2": 0,
+    "api3": 0
+  },
+  "llm_configuration": {
+    "master_llm": "claude-sonnet-4-20250514",
+    "slave_llm": "gemini-2.5-flash",
+    "n_batch_llm_calls": 3,
+    "max_batch_rows": 50,
+    "bypass_rb": true
+  },
+  "rules_based_enabled": true,
+  "rules_based_accuracy_percent": 98.7,
+  "rules_based_mismatches": {
+    "tenant": [
+      {
+        "key": 0,
+        "api_value": "None",
+        "rules_value": "<<<Unavailable-Removed"
+      },
+      {
+        "key": 1,
+        "api_value": "None",
+        "rules_value": "<<<Unavailable-Removed"
+      },
+      {
+        "key": 2,
+        "api_value": "None",
+        "rules_value": "<<<Unavailable-Removed"
+      },
+      {
+        "key": 3,
+        "api_value": "None",
+        "rules_value": "<<<Unavailable-Removed"
+      },
+      {
+        "key": 9,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Unassigned>>"
+      },
+      {
+        "key": 35,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Unassigned>>"
+      },
+      {
+        "key": 40,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Unassigned>>"
+      },
+      {
+        "key": 42,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Unassigned>>"
+      }
+    ]
+  }
+}

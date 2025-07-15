@@ -1,0 +1,19 @@
+{
+  "processing_summary": {
+    "total_files": 1,
+    "successful_files": 1,
+    "failed_files": 0,
+    "comparison_mode": "3-Way Comparison",
+    "timestamp": "2025-07-15 12:45:04"
+  },
+  "individual_results": [
+    {
+      "file": "Edgewater RR 02-21-24.xlsx",
+      "comparison_mode": "3-way",
+      "total_cost": 0.9747000000000001,
+      "perfect_accuracy": 100.0,
+      "majority_accuracy": 100.0,
+      "rules_based_accuracy": 85.36
+    }
+  ]
+}

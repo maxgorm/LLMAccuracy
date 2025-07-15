@@ -1,0 +1,935 @@
+{
+  "file": "C:\\Users\\maxgo\\AppData\\Local\\Temp\\tmpu6p0mrhj\\Edgewater RR 02-21-24.xlsx",
+  "comparison_mode": "3-way",
+  "perfect_accuracy_percent": 100.0,
+  "majority_accuracy_percent": 100.0,
+  "consensus_data": {},
+  "field_consensus_stats": {
+    "unit_num": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "unit_type": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "sqft": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "br": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "bath": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "tenant": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "move_in": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "lease_start": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "lease_end": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "rent_charge": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "rent_gov_subsidy": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "is_mtm": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "mtm_charge": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    },
+    "rent_market": {
+      "perfect": 80,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 80
+    }
+  },
+  "api_outlier_count": {
+    "api1": 0,
+    "api2": 0,
+    "api3": 0
+  },
+  "llm_configuration": {
+    "master_llm": "claude-sonnet-4-20250514",
+    "slave_llm": "gemini-2.5-flash",
+    "n_batch_llm_calls": 3,
+    "max_batch_rows": 50,
+    "bypass_rb": true
+  },
+  "rules_based_enabled": true,
+  "rules_based_accuracy_percent": 85.36,
+  "rules_based_mismatches": {
+    "unit_num": [
+      {
+        "key": 0,
+        "api_value": "302-101",
+        "rules_value": "302   101"
+      },
+      {
+        "key": 1,
+        "api_value": "302-102",
+        "rules_value": "302   102"
+      },
+      {
+        "key": 2,
+        "api_value": "302-103",
+        "rules_value": "302   103"
+      },
+      {
+        "key": 3,
+        "api_value": "302-104",
+        "rules_value": "302   104"
+      },
+      {
+        "key": 4,
+        "api_value": "302-105",
+        "rules_value": "302   105"
+      },
+      {
+        "key": 5,
+        "api_value": "302-106",
+        "rules_value": "302   106"
+      },
+      {
+        "key": 6,
+        "api_value": "302-107",
+        "rules_value": "302   107"
+      },
+      {
+        "key": 7,
+        "api_value": "302-108",
+        "rules_value": "302   108"
+      },
+      {
+        "key": 8,
+        "api_value": "302-109",
+        "rules_value": "302   109"
+      },
+      {
+        "key": 9,
+        "api_value": "302-110",
+        "rules_value": "302   110"
+      },
+      {
+        "key": 10,
+        "api_value": "302-111",
+        "rules_value": "302   111"
+      },
+      {
+        "key": 11,
+        "api_value": "302-112",
+        "rules_value": "302   112"
+      },
+      {
+        "key": 12,
+        "api_value": "302-113",
+        "rules_value": "302   113"
+      },
+      {
+        "key": 13,
+        "api_value": "302-114",
+        "rules_value": "302   114"
+      },
+      {
+        "key": 14,
+        "api_value": "302-115",
+        "rules_value": "302   115"
+      },
+      {
+        "key": 15,
+        "api_value": "302-116",
+        "rules_value": "302   116"
+      },
+      {
+        "key": 16,
+        "api_value": "302-201",
+        "rules_value": "302   201"
+      },
+      {
+        "key": 17,
+        "api_value": "302-202",
+        "rules_value": "302   202"
+      },
+      {
+        "key": 18,
+        "api_value": "302-203",
+        "rules_value": "302   203"
+      },
+      {
+        "key": 19,
+        "api_value": "302-204",
+        "rules_value": "302   204"
+      },
+      {
+        "key": 20,
+        "api_value": "302-205",
+        "rules_value": "302   205"
+      },
+      {
+        "key": 21,
+        "api_value": "302-206",
+        "rules_value": "302   206"
+      },
+      {
+        "key": 22,
+        "api_value": "302-207",
+        "rules_value": "302   207"
+      },
+      {
+        "key": 23,
+        "api_value": "302-208",
+        "rules_value": "302   208"
+      },
+      {
+        "key": 24,
+        "api_value": "302-209",
+        "rules_value": "302   209"
+      },
+      {
+        "key": 25,
+        "api_value": "302-210",
+        "rules_value": "302   210"
+      },
+      {
+        "key": 26,
+        "api_value": "302-211",
+        "rules_value": "302   211"
+      },
+      {
+        "key": 27,
+        "api_value": "302-212",
+        "rules_value": "302   212"
+      },
+      {
+        "key": 28,
+        "api_value": "302-213",
+        "rules_value": "302   213"
+      },
+      {
+        "key": 29,
+        "api_value": "302-214",
+        "rules_value": "302   214"
+      },
+      {
+        "key": 30,
+        "api_value": "302-215",
+        "rules_value": "302   215"
+      },
+      {
+        "key": 31,
+        "api_value": "302-216",
+        "rules_value": "302   216"
+      },
+      {
+        "key": 32,
+        "api_value": "302-301",
+        "rules_value": "302   301"
+      },
+      {
+        "key": 33,
+        "api_value": "302-302",
+        "rules_value": "302   302"
+      },
+      {
+        "key": 34,
+        "api_value": "302-303",
+        "rules_value": "302   303"
+      },
+      {
+        "key": 35,
+        "api_value": "302-304",
+        "rules_value": "302   304"
+      },
+      {
+        "key": 36,
+        "api_value": "302-305",
+        "rules_value": "302   305"
+      },
+      {
+        "key": 37,
+        "api_value": "302-306",
+        "rules_value": "302   306"
+      },
+      {
+        "key": 38,
+        "api_value": "302-307",
+        "rules_value": "302   307"
+      },
+      {
+        "key": 39,
+        "api_value": "302-308",
+        "rules_value": "302   308"
+      },
+      {
+        "key": 40,
+        "api_value": "302-309",
+        "rules_value": "302   309"
+      },
+      {
+        "key": 41,
+        "api_value": "302-310",
+        "rules_value": "302   310"
+      },
+      {
+        "key": 42,
+        "api_value": "302-311",
+        "rules_value": "302   311"
+      },
+      {
+        "key": 43,
+        "api_value": "302-312",
+        "rules_value": "302   312"
+      },
+      {
+        "key": 44,
+        "api_value": "302-313",
+        "rules_value": "302   313"
+      },
+      {
+        "key": 45,
+        "api_value": "302-314",
+        "rules_value": "302   314"
+      },
+      {
+        "key": 46,
+        "api_value": "302-315",
+        "rules_value": "302   315"
+      },
+      {
+        "key": 47,
+        "api_value": "302-316",
+        "rules_value": "302   316"
+      },
+      {
+        "key": 48,
+        "api_value": "302-401",
+        "rules_value": "302   401"
+      },
+      {
+        "key": 49,
+        "api_value": "302-402",
+        "rules_value": "302   402"
+      },
+      {
+        "key": 50,
+        "api_value": "302-403",
+        "rules_value": "302   403"
+      },
+      {
+        "key": 51,
+        "api_value": "302-404",
+        "rules_value": "302   404"
+      },
+      {
+        "key": 52,
+        "api_value": "302-405",
+        "rules_value": "302   405"
+      },
+      {
+        "key": 53,
+        "api_value": "302-406",
+        "rules_value": "302   406"
+      },
+      {
+        "key": 54,
+        "api_value": "302-407",
+        "rules_value": "302   407"
+      },
+      {
+        "key": 55,
+        "api_value": "302-408",
+        "rules_value": "302   408"
+      },
+      {
+        "key": 56,
+        "api_value": "302-409",
+        "rules_value": "302   409"
+      },
+      {
+        "key": 57,
+        "api_value": "302-410",
+        "rules_value": "302   410"
+      },
+      {
+        "key": 58,
+        "api_value": "302-411",
+        "rules_value": "302   411"
+      },
+      {
+        "key": 59,
+        "api_value": "302-412",
+        "rules_value": "302   412"
+      },
+      {
+        "key": 60,
+        "api_value": "302-413",
+        "rules_value": "302   413"
+      },
+      {
+        "key": 61,
+        "api_value": "302-414",
+        "rules_value": "302   414"
+      },
+      {
+        "key": 62,
+        "api_value": "302-415",
+        "rules_value": "302   415"
+      },
+      {
+        "key": 63,
+        "api_value": "302-416",
+        "rules_value": "302   416"
+      },
+      {
+        "key": 64,
+        "api_value": "302-501",
+        "rules_value": "302   501"
+      },
+      {
+        "key": 65,
+        "api_value": "302-502",
+        "rules_value": "302   502"
+      },
+      {
+        "key": 66,
+        "api_value": "302-503",
+        "rules_value": "302   503"
+      },
+      {
+        "key": 67,
+        "api_value": "302-504",
+        "rules_value": "302   504"
+      },
+      {
+        "key": 68,
+        "api_value": "302-505",
+        "rules_value": "302   505"
+      },
+      {
+        "key": 69,
+        "api_value": "302-506",
+        "rules_value": "302   506"
+      },
+      {
+        "key": 70,
+        "api_value": "302-507",
+        "rules_value": "302   507"
+      },
+      {
+        "key": 71,
+        "api_value": "302-508",
+        "rules_value": "302   508"
+      },
+      {
+        "key": 72,
+        "api_value": "302-509",
+        "rules_value": "302   509"
+      },
+      {
+        "key": 73,
+        "api_value": "302-510",
+        "rules_value": "302   510"
+      },
+      {
+        "key": 74,
+        "api_value": "302-511",
+        "rules_value": "302   511"
+      },
+      {
+        "key": 75,
+        "api_value": "302-512",
+        "rules_value": "302   512"
+      },
+      {
+        "key": 76,
+        "api_value": "302-513",
+        "rules_value": "302   513"
+      },
+      {
+        "key": 77,
+        "api_value": "302-514",
+        "rules_value": "302   514"
+      },
+      {
+        "key": 78,
+        "api_value": "302-515",
+        "rules_value": "302   515"
+      },
+      {
+        "key": 79,
+        "api_value": "302-516",
+        "rules_value": "302   516"
+      }
+    ],
+    "unit_type": [
+      {
+        "key": 0,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 1,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 2,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 3,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 4,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 5,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 6,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 7,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 8,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 9,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 10,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 11,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 12,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 13,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 14,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 15,
+        "api_value": "1/1",
+        "rules_value": "1/1-741"
+      },
+      {
+        "key": 16,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 17,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 18,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 19,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 20,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 21,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 22,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 23,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 24,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 25,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 26,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 27,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 28,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 29,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 30,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 31,
+        "api_value": "2/2",
+        "rules_value": "2/2-1013"
+      },
+      {
+        "key": 32,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 33,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 34,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 35,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 36,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 37,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 38,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 39,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 40,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 41,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 42,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 43,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 44,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 45,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 46,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 47,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 48,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 49,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 50,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 51,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 52,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 53,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 54,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 55,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 56,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 57,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 58,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 59,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 60,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 61,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 62,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 63,
+        "api_value": "1/1",
+        "rules_value": "1/1-645"
+      },
+      {
+        "key": 64,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 65,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 66,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 67,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 68,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 69,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 70,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 71,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 72,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 73,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 74,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 75,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 76,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 77,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 78,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      },
+      {
+        "key": 79,
+        "api_value": "2/1",
+        "rules_value": "2/1-777"
+      }
+    ],
+    "tenant": [
+      {
+        "key": 11,
+        "api_value": "None",
+        "rules_value": "<<<Unavailable>>>"
+      },
+      {
+        "key": 57,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      },
+      {
+        "key": 62,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      },
+      {
+        "key": 72,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      }
+    ]
+  }
+}

@@ -62,6 +62,104 @@ def calculate_total_cost(api_output):
     
     return final_total, cost_breakdown
 
+def calculate_adjusted_batch_costs(api_output1, api_output2, api_output3, n_batch_calls=3):
+    """
+    Calculate adjusted costs for batch processing where only the slave LLM is run multiple times.
+    The master LLM cost should only be counted once, while slave LLM cost is counted n_batch_calls times.
+    """
+    # Get individual costs and breakdowns
+    cost1, breakdown1 = calculate_total_cost(api_output1)
+    cost2, breakdown2 = calculate_total_cost(api_output2)
+    cost3, breakdown3 = calculate_total_cost(api_output3)
+    
+    # Group costs by model type to identify master vs slave LLMs
+    all_models = {}
+    
+    # Collect all model costs from all API calls
+    for i, breakdown in enumerate([breakdown1, breakdown2, breakdown3], 1):
+        for entry in breakdown:
+            model = entry['model']
+            if model not in all_models:
+                all_models[model] = {
+                    'costs': [],
+                    'total_cost': 0,
+                    'in_tokens': entry['in_tokens'],
+                    'out_tokens': entry['out_tokens']
+                }
+            all_models[model]['costs'].append(entry['cost'])
+            all_models[model]['total_cost'] += entry['cost']
+    
+    # Identify master and slave LLMs based on naming patterns
+    # Master LLMs typically have names like claude-sonnet, claude-opus, etc.
+    # Slave LLMs typically have names like gemini, gpt, etc.
+    master_models = []
+    slave_models = []
+    
+    for model in all_models.keys():
+        model_lower = model.lower()
+        if 'claude' in model_lower and ('sonnet' in model_lower or 'opus' in model_lower):
+            master_models.append(model)
+        else:
+            slave_models.append(model)
+    
+    # Calculate adjusted costs
+    adjusted_breakdown1 = []
+    adjusted_breakdown2 = []
+    adjusted_breakdown3 = []
+    adjusted_total = 0
+    
+    # For master LLMs: only count cost from first API call
+    for model in master_models:
+        if model in [entry['model'] for entry in breakdown1]:
+            # Find the entry in breakdown1
+            for entry in breakdown1:
+                if entry['model'] == model:
+                    adjusted_breakdown1.append(entry)
+                    adjusted_total += entry['cost']
+                    break
+            
+            # Add zero-cost entries for API calls 2 and 3 to show they weren't charged
+            adjusted_breakdown2.append({
+                'model': model,
+                'cost': 0.0,
+                'in_tokens': 0,
+                'out_tokens': 0
+            })
+            adjusted_breakdown3.append({
+                'model': model,
+                'cost': 0.0,
+                'in_tokens': 0,
+                'out_tokens': 0
+            })
+    
+    # For slave LLMs: count cost from all API calls
+    for model in slave_models:
+        for i, breakdown in enumerate([breakdown1, breakdown2, breakdown3], 1):
+            for entry in breakdown:
+                if entry['model'] == model:
+                    if i == 1:
+                        adjusted_breakdown1.append(entry)
+                    elif i == 2:
+                        adjusted_breakdown2.append(entry)
+                    else:
+                        adjusted_breakdown3.append(entry)
+                    adjusted_total += entry['cost']
+    
+    # Calculate individual API costs for display
+    adjusted_cost1 = sum(entry['cost'] for entry in adjusted_breakdown1)
+    adjusted_cost2 = sum(entry['cost'] for entry in adjusted_breakdown2)
+    adjusted_cost3 = sum(entry['cost'] for entry in adjusted_breakdown3)
+    
+    return {
+        'api1_cost': adjusted_cost1,
+        'api1_cost_breakdown': adjusted_breakdown1,
+        'api2_cost': adjusted_cost2,
+        'api2_cost_breakdown': adjusted_breakdown2,
+        'api3_cost': adjusted_cost3,
+        'api3_cost_breakdown': adjusted_breakdown3,
+        'total_cost': adjusted_total
+    }
+
 def generate_majority_consensus_output(api_output1, api_output2, api_output3):
     """Generate a synthetic API output representing the majority consensus from 3-way comparison."""
     
@@ -150,6 +248,9 @@ def generate_majority_consensus_output(api_output1, api_output2, api_output3):
             norm_vals = []
             raw_vals = [val_api1, val_api2, val_api3]
             
+            # Import the field-specific normalization function
+            from api_rent_roll_verifier import normalize_field_value
+            
             for val in raw_vals:
                 if field == 'is_mtm':
                     norm_vals.append(int(val) if not pd.isna(val) else 0)
@@ -159,7 +260,7 @@ def generate_majority_consensus_output(api_output1, api_output2, api_output3):
                     else:
                         norm_vals.append(float(val))
                 else:
-                    norm_vals.append(normalize_value(val))
+                    norm_vals.append(normalize_field_value(field, val))
             
             # Determine majority value
             unique_vals = list(set(norm_vals))
@@ -365,10 +466,8 @@ def compare_api_outputs_3way(api_output1, api_output2, api_output3):
         percentage = round(100 * count / majority_agreement, 2) if majority_agreement > 0 else 0
         st.write(f"{api.upper()} was the outlier: {count} times ({percentage}% of majority cases)")
     
-    # Calculate costs for each API output
-    cost1, breakdown1 = calculate_total_cost(api_output1)
-    cost2, breakdown2 = calculate_total_cost(api_output2)
-    cost3, breakdown3 = calculate_total_cost(api_output3)
+    # Calculate adjusted costs for batch processing
+    adjusted_costs = calculate_adjusted_batch_costs(api_output1, api_output2, api_output3)
     
     return {
         "perfect_accuracy": perfect_accuracy,
@@ -381,13 +480,13 @@ def compare_api_outputs_3way(api_output1, api_output2, api_output3):
         "perfect_agreement": perfect_agreement,
         "majority_agreement": majority_agreement,
         "complete_disagreement": complete_disagreement,
-        "api1_cost": cost1,
-        "api1_cost_breakdown": breakdown1,
-        "api2_cost": cost2,
-        "api2_cost_breakdown": breakdown2,
-        "api3_cost": cost3,
-        "api3_cost_breakdown": breakdown3,
-        "total_cost": cost1 + cost2 + cost3
+        "api1_cost": adjusted_costs["api1_cost"],
+        "api1_cost_breakdown": adjusted_costs["api1_cost_breakdown"],
+        "api2_cost": adjusted_costs["api2_cost"],
+        "api2_cost_breakdown": adjusted_costs["api2_cost_breakdown"],
+        "api3_cost": adjusted_costs["api3_cost"],
+        "api3_cost_breakdown": adjusted_costs["api3_cost_breakdown"],
+        "total_cost": adjusted_costs["total_cost"]
     }
 
 def compare_api_outputs(api_output1, api_output2):
@@ -494,9 +593,12 @@ def compare_api_outputs(api_output1, api_output2):
             val_api1 = row.get(field_api1)
             val_api2 = row.get(field_api2)
             
-            # Normalize for comparison
-            norm_api1 = normalize_value(val_api1)
-            norm_api2 = normalize_value(val_api2)
+            # Import the field-specific normalization function
+            from api_rent_roll_verifier import normalize_field_value
+            
+            # Use field-specific normalization for comparison
+            norm_api1 = normalize_field_value(field, val_api1)
+            norm_api2 = normalize_field_value(field, val_api2)
             
             # Special handling for boolean 'is_mtm' (compare normalized 0/1)
             if field == 'is_mtm':
@@ -569,6 +671,37 @@ def run_streamlit_app():
         st.session_state.completed_files = {}
     if 'download_data' not in st.session_state:
         st.session_state.download_data = {}
+    if 'download_files' not in st.session_state:
+        st.session_state.download_files = {}
+    
+    # Create downloads directory
+    downloads_dir = "downloads"
+    os.makedirs(downloads_dir, exist_ok=True)
+    
+    # Helper function to save file and create download link
+    def create_download_file(data, filename, label):
+        """Save data to file and return download link"""
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        safe_filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(downloads_dir, safe_filename)
+        
+        # Save the file
+        with open(filepath, 'w') as f:
+            if isinstance(data, dict) or isinstance(data, list):
+                json.dump(data, f, indent=2, default=str)
+            else:
+                f.write(str(data))
+        
+        # Store in session state for tracking
+        if 'download_files' not in st.session_state:
+            st.session_state.download_files = {}
+        st.session_state.download_files[label] = {
+            'filepath': filepath,
+            'filename': safe_filename,
+            'created': timestamp
+        }
+        
+        return filepath, safe_filename
     
     # Comparison Mode Selection
     st.subheader("Comparison Mode")
@@ -675,57 +808,38 @@ def run_streamlit_app():
                                         value=50,
                                         help="Maximum number of rows to process in each batch")
         
-        st.info("Configure the LLM models for comparison. The first API call will use the first set of models, and the second API call will use the second set.")
-        
-        # First API call LLM configuration
-        st.subheader("First API Call")
-        col1, col2 = st.columns(2)
-        with col1:
-            llm1_master = st.selectbox("Primary LLM (First API Call)", 
-                                      all_models, 
-                                      index=all_models.index('claude-sonnet-4-20250514'),
-                                      help="Primary LLM for processing")
-        with col2:
-            llm1_slave = st.selectbox("Secondary LLM (First API Call)", 
-                                     all_models, 
-                                     index=all_models.index('gemini-2.5-flash'),
-                                     help="Secondary LLM for verification")
-        
-        # Second API call LLM configuration
-        st.subheader("Second API Call")
-        col1, col2 = st.columns(2)
-        with col1:
-            llm2_master = st.selectbox("Primary LLM (Second API Call)", 
-                                      all_models, 
-                                      index=all_models.index('claude-sonnet-4-20250514'),
-                                      help="Primary LLM for processing")
-        with col2:
-            llm2_slave = st.selectbox("Secondary LLM (Second API Call)", 
-                                     all_models, 
-                                     index=all_models.index('gemini-2.5-flash'),
-                                     help="Secondary LLM for verification")
-        
-        # Third API call LLM configuration (only show for 3-way comparison)
         if comparison_mode == "3-Way Comparison":
-            st.subheader("Third API Call")
-            col1, col2 = st.columns(2)
-            with col1:
-                llm3_master = st.selectbox("Primary LLM (Third API Call)", 
-                                          all_models, 
-                                          index=all_models.index('claude-sonnet-4-20250514'),
-                                          help="Primary LLM for processing")
-            with col2:
-                llm3_slave = st.selectbox("Secondary LLM (Third API Call)", 
-                                         all_models, 
-                                         index=all_models.index('gemini-2.5-flash'),
-                                         help="Secondary LLM for verification")
+            n_batch_llm_calls = st.number_input("Number of LLM Calls", 
+                                               min_value=2, 
+                                               max_value=10, 
+                                               value=3,
+                                               help="Number of times to run the same LLM configuration for comparison")
+        else:
+            n_batch_llm_calls = 2  # For 2-way comparison
         
-        # Display current selections
+        st.info("Configure the LLM models that will be used for all comparison calls. The same configuration will be run multiple times to generate different results for comparison.")
+        
+        # Single LLM configuration for all calls
+        st.subheader("LLM Configuration")
+        col1, col2 = st.columns(2)
+        with col1:
+            llm_master = st.selectbox("Primary LLM", 
+                                     all_models, 
+                                     index=all_models.index('claude-sonnet-4-20250514'),
+                                     help="Primary LLM for processing")
+        with col2:
+            llm_slave = st.selectbox("Secondary LLM", 
+                                    all_models, 
+                                    index=all_models.index('gemini-2.5-flash'),
+                                    help="Secondary LLM for verification")
+        
+        # Display current configuration
         st.write("**Current Configuration:**")
-        st.write(f"First API Call: {llm1_master} (master) + {llm1_slave} (slave)")
-        st.write(f"Second API Call: {llm2_master} (master) + {llm2_slave} (slave)")
+        st.write(f"LLM Configuration: {llm_master} (master) + {llm_slave} (slave)")
         if comparison_mode == "3-Way Comparison":
-            st.write(f"Third API Call: {llm3_master} (master) + {llm3_slave} (slave)")
+            st.write(f"Number of LLM Calls: {n_batch_llm_calls}")
+        else:
+            st.write(f"Number of LLM Calls: 2 (for 2-way comparison)")
     
     # Show model categories for reference (outside the LLM Configuration expander)
     with st.expander("Available Models by Provider"):
@@ -828,198 +942,105 @@ def run_streamlit_app():
                 # Process the file
                 with st.spinner(f"Processing {file_name}..."):
                     try:
-                        # Step 1: Submit jobs to the API simultaneously
-                        if comparison_mode == "2-Way Comparison":
-                            st.write(f"Submitting {file_name} to API (Both Calls Simultaneously)...")
-                        else:
-                            st.write(f"Submitting {file_name} to API (All Three Calls Simultaneously)...")
+                        # Step 1: Submit single batch job to the API
+                        st.write(f"Submitting {file_name} to API with {n_batch_llm_calls} LLM calls...")
                         
-                        # Submit first job
-                        job_id1 = submit_job(file_path, 
-                                           token="", 
-                                           doc_type="rent_roll", 
-                                           sheet_name=sheet_name, 
-                                           bypass_rb=bypass_rb,
-                                           max_n_batch_rows=max_batch_rows,
-                                           rr_master_llm=llm1_master,
-                                           rr_slave_llm=llm1_slave)
+                        # Submit single batch job
+                        job_id = submit_job(file_path, 
+                                          token="", 
+                                          doc_type="rent_roll", 
+                                          sheet_name=sheet_name, 
+                                          bypass_rb=bypass_rb,
+                                          max_n_batch_rows=max_batch_rows,
+                                          rr_master_llm=llm_master,
+                                          rr_slave_llm=llm_slave,
+                                          n_batch_llm_calls=n_batch_llm_calls)
                         
-                        if not job_id1:
-                            st.error(f"Failed to submit first job to API for {file_name}.")
+                        if not job_id:
+                            st.error(f"Failed to submit batch job to API for {file_name}.")
                             continue
                         
-                        # Submit second job immediately after first
-                        job_id2 = submit_job(file_path, 
-                                           token="", 
-                                           doc_type="rent_roll", 
-                                           sheet_name=sheet_name, 
-                                           bypass_rb=bypass_rb,
-                                           max_n_batch_rows=max_batch_rows,
-                                           rr_master_llm=llm2_master,
-                                           rr_slave_llm=llm2_slave)
+                        st.write(f"Batch job submitted successfully. Job ID: {job_id}")
                         
-                        if not job_id2:
-                            st.error(f"Failed to submit second job to API for {file_name}.")
-                            continue
+                        # Step 2: Monitor batch job
+                        st.write(f"Monitoring batch job for {file_name}...")
                         
-                        # Submit third job if 3-way comparison
-                        job_id3 = None
-                        if comparison_mode == "3-Way Comparison":
-                            job_id3 = submit_job(file_path, 
-                                               token="", 
-                                               doc_type="rent_roll", 
-                                               sheet_name=sheet_name, 
-                                               bypass_rb=bypass_rb,
-                                               max_n_batch_rows=max_batch_rows,
-                                               rr_master_llm=llm3_master,
-                                               rr_slave_llm=llm3_slave)
-                            
-                            if not job_id3:
-                                st.error(f"Failed to submit third job to API for {file_name}.")
-                                continue
-                        
-                        if comparison_mode == "2-Way Comparison":
-                            st.write(f"Both jobs submitted successfully. Job IDs: {job_id1}, {job_id2}")
-                        else:
-                            st.write(f"All three jobs submitted successfully. Job IDs: {job_id1}, {job_id2}, {job_id3}")
-                        
-                        # Step 2: Monitor jobs simultaneously
-                        if comparison_mode == "2-Way Comparison":
-                            st.write(f"Monitoring both API calls for {file_name}...")
-                        else:
-                            st.write(f"Monitoring all three API calls for {file_name}...")
-                        
-                        # Create progress tracking for jobs
-                        if comparison_mode == "2-Way Comparison":
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.write("**First API Call Progress:**")
-                                file_progress_bar1 = st.progress(0)
-                                file_status_text1 = st.empty()
-                            with col2:
-                                st.write("**Second API Call Progress:**")
-                                file_progress_bar2 = st.progress(0)
-                                file_status_text2 = st.empty()
-                        else:
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.write("**First API Call Progress:**")
-                                file_progress_bar1 = st.progress(0)
-                                file_status_text1 = st.empty()
-                            with col2:
-                                st.write("**Second API Call Progress:**")
-                                file_progress_bar2 = st.progress(0)
-                                file_status_text2 = st.empty()
-                            with col3:
-                                st.write("**Third API Call Progress:**")
-                                file_progress_bar3 = st.progress(0)
-                                file_status_text3 = st.empty()
+                        # Create progress tracking for the single batch job
+                        st.write("**Batch Job Progress:**")
+                        file_progress_bar = st.progress(0)
+                        file_status_text = st.empty()
                         
                         # Set up retry parameters
                         max_retries = 50
                         retry_delay = 15
                         
                         # Track completion status
-                        api_output1 = None
-                        api_output2 = None
-                        api_output3 = None
-                        job1_complete = False
-                        job2_complete = False
-                        job3_complete = True if comparison_mode == "2-Way Comparison" else False
+                        batch_api_output = None
+                        job_complete = False
                         
-                        # Monitor jobs simultaneously
+                        # Monitor batch job
                         for retry in range(max_retries):
-                            # Check first job if not complete
-                            if not job1_complete:
-                                file_status_text1.text(f"Attempt {retry + 1}/{max_retries}: Checking first job status...")
-                                file_progress_bar1.progress((retry + 1) / max_retries)
-                                
-                                temp_output1 = fetch_job_results(job_id1, max_retries=1, retry_delay=0)
-                                
-                                if temp_output1 is not None:
-                                    if temp_output1.get('job', {}).get('status') != 'processing':
-                                        # Job is complete
-                                        api_output1 = temp_output1
-                                        job1_complete = True
-                                        file_status_text1.text(f"First job completed successfully!")
-                                        file_progress_bar1.progress(1.0)
-                                    else:
-                                        file_status_text1.text(f"First job still processing...")
-                                else:
-                                    file_status_text1.text(f"First job status check failed, retrying...")
+                            file_status_text.text(f"Attempt {retry + 1}/{max_retries}: Checking batch job status...")
+                            file_progress_bar.progress((retry + 1) / max_retries)
                             
-                            # Check second job if not complete
-                            if not job2_complete:
-                                file_status_text2.text(f"Attempt {retry + 1}/{max_retries}: Checking second job status...")
-                                file_progress_bar2.progress((retry + 1) / max_retries)
-                                
-                                temp_output2 = fetch_job_results(job_id2, max_retries=1, retry_delay=0)
-                                
-                                if temp_output2 is not None:
-                                    if temp_output2.get('job', {}).get('status') != 'processing':
-                                        # Job is complete
-                                        api_output2 = temp_output2
-                                        job2_complete = True
-                                        file_status_text2.text(f"Second job completed successfully!")
-                                        file_progress_bar2.progress(1.0)
-                                    else:
-                                        file_status_text2.text(f"Second job still processing...")
-                                else:
-                                    file_status_text2.text(f"Second job status check failed, retrying...")
+                            temp_output = fetch_job_results(job_id, max_retries=1, retry_delay=0)
                             
-                            # Check third job if not complete (only for 3-way comparison)
-                            if not job3_complete and comparison_mode == "3-Way Comparison":
-                                file_status_text3.text(f"Attempt {retry + 1}/{max_retries}: Checking third job status...")
-                                file_progress_bar3.progress((retry + 1) / max_retries)
-                                
-                                temp_output3 = fetch_job_results(job_id3, max_retries=1, retry_delay=0)
-                                
-                                if temp_output3 is not None:
-                                    if temp_output3.get('job', {}).get('status') != 'processing':
-                                        # Job is complete
-                                        api_output3 = temp_output3
-                                        job3_complete = True
-                                        file_status_text3.text(f"Third job completed successfully!")
-                                        file_progress_bar3.progress(1.0)
-                                    else:
-                                        file_status_text3.text(f"Third job still processing...")
+                            if temp_output is not None:
+                                if temp_output.get('job', {}).get('status') != 'processing':
+                                    # Job is complete
+                                    batch_api_output = temp_output
+                                    job_complete = True
+                                    file_status_text.text(f"Batch job completed successfully!")
+                                    file_progress_bar.progress(1.0)
+                                    break
                                 else:
-                                    file_status_text3.text(f"Third job status check failed, retrying...")
-                            
-                            # Check if all jobs are complete
-                            if job1_complete and job2_complete and job3_complete:
-                                if comparison_mode == "2-Way Comparison":
-                                    st.success(f"Both jobs completed successfully for {file_name}!")
-                                else:
-                                    st.success(f"All three jobs completed successfully for {file_name}!")
-                                break
+                                    file_status_text.text(f"Batch job still processing...")
+                            else:
+                                file_status_text.text(f"Batch job status check failed, retrying...")
                             
                             # Wait before next check
                             time.sleep(retry_delay)
                         else:
-                            # Loop completed without all jobs finishing
-                            if not job1_complete:
-                                st.error(f"Maximum retries reached for first job on {file_name}. Job may still be processing.")
-                            if not job2_complete:
-                                st.error(f"Maximum retries reached for second job on {file_name}. Job may still be processing.")
-                            if not job3_complete and comparison_mode == "3-Way Comparison":
-                                st.error(f"Maximum retries reached for third job on {file_name}. Job may still be processing.")
-                            
-                            # Continue to next file if any job failed
-                            if not (job1_complete and job2_complete and job3_complete):
-                                continue
+                            # Loop completed without job finishing
+                            st.error(f"Maximum retries reached for batch job on {file_name}. Job may still be processing.")
+                            continue
+                        
+                        # Verify we have the batch output
+                        if not batch_api_output:
+                            st.error(f"Failed to fetch batch job results from API for {file_name}.")
+                            continue
+                        
+                        st.success(f"Batch job completed successfully for {file_name}!")
+                        
+                        # Step 3: Extract individual results from batch output
+                        st.write(f"Extracting individual results from batch output...")
+                        
+                        # Import the extract_batch_results function
+                        from api_rent_roll_verifier import extract_batch_results
+                        
+                        # Extract individual results
+                        individual_results = extract_batch_results(batch_api_output, n_batch_llm_calls)
+                        
+                        if not individual_results or len(individual_results) != n_batch_llm_calls:
+                            st.error(f"Failed to extract {n_batch_llm_calls} individual results from batch output for {file_name}.")
+                            continue
+                        
+                        # Assign individual results
+                        api_output1 = individual_results[0]
+                        api_output2 = individual_results[1] if len(individual_results) > 1 else None
+                        api_output3 = individual_results[2] if len(individual_results) > 2 else None
                         
                         # Verify we have all required outputs
                         if not api_output1:
-                            st.error(f"Failed to fetch first job results from API for {file_name}.")
+                            st.error(f"Failed to extract first result from batch output for {file_name}.")
                             continue
                         
-                        if not api_output2:
-                            st.error(f"Failed to fetch second job results from API for {file_name}.")
+                        if comparison_mode == "2-Way Comparison" and not api_output2:
+                            st.error(f"Failed to extract second result from batch output for {file_name}.")
                             continue
                         
-                        if comparison_mode == "3-Way Comparison" and not api_output3:
-                            st.error(f"Failed to fetch third job results from API for {file_name}.")
+                        if comparison_mode == "3-Way Comparison" and (not api_output2 or not api_output3):
+                            st.error(f"Failed to extract all three results from batch output for {file_name}.")
                             continue
                         
                         # Save API outputs for reference
@@ -1071,14 +1092,9 @@ def run_streamlit_app():
                                     "accuracy_percent": accuracy,
                                     "field_mismatches": diffs,
                                     "llm_configuration": {
-                                        "first_api_call": {
-                                            "master_llm": llm1_master,
-                                            "slave_llm": llm1_slave
-                                        },
-                                        "second_api_call": {
-                                            "master_llm": llm2_master,
-                                            "slave_llm": llm2_slave
-                                        },
+                                        "master_llm": llm_master,
+                                        "slave_llm": llm_slave,
+                                        "n_batch_llm_calls": n_batch_llm_calls,
                                         "max_batch_rows": max_batch_rows,
                                         "bypass_rb": bypass_rb
                                     }
@@ -1099,14 +1115,9 @@ def run_streamlit_app():
                                     "api2_cost_breakdown": breakdown2,
                                     "total_cost": total_cost,
                                     "llm_config": {
-                                        "first_api_call": {
-                                            "master_llm": llm1_master,
-                                            "slave_llm": llm1_slave
-                                        },
-                                        "second_api_call": {
-                                            "master_llm": llm2_master,
-                                            "slave_llm": llm2_slave
-                                        },
+                                        "master_llm": llm_master,
+                                        "slave_llm": llm_slave,
+                                        "n_batch_llm_calls": n_batch_llm_calls,
                                         "max_batch_rows": max_batch_rows,
                                         "bypass_rb": bypass_rb
                                     }
@@ -1176,13 +1187,13 @@ def run_streamlit_app():
                                         # Submit job to API with rules-based approach (bypass_rb=False)
                                         st.write("Submitting file to API with rules-based approach...")
                                         rules_based_job_id = submit_job(file_path, 
-                                                                       token="", 
-                                                                       doc_type="rent_roll", 
-                                                                       sheet_name=sheet_name, 
-                                                                       bypass_rb=False,  # Use rules-based approach
-                                                                       max_n_batch_rows=max_batch_rows,
-                                                                       rr_master_llm=llm1_master,  # LLM config doesn't matter for rules-based
-                                                                       rr_slave_llm=llm1_slave)
+                                                               token="", 
+                                                               doc_type="rent_roll", 
+                                                               sheet_name=sheet_name, 
+                                                               bypass_rb=False,  # Use rules-based approach
+                                                               max_n_batch_rows=max_batch_rows,
+                                                               rr_master_llm=llm_master,  # LLM config doesn't matter for rules-based
+                                                               rr_slave_llm=llm_slave)
                                         
                                         if rules_based_job_id:
                                             st.write(f"Rules-based job submitted successfully. Job ID: {rules_based_job_id}")
@@ -1303,9 +1314,12 @@ def run_streamlit_app():
                                                                 val_majority = row.get(field_majority)
                                                                 val_rules = row.get(field_rules)
                                                                 
-                                                                # Normalize for comparison (same logic as compare_data)
-                                                                norm_majority = normalize_value(val_majority)
-                                                                norm_rules = normalize_value(val_rules)
+                                                                # Import the field-specific normalization function
+                                                                from api_rent_roll_verifier import normalize_field_value
+                                                                
+                                                                # Use field-specific normalization for comparison
+                                                                norm_majority = normalize_field_value(field, val_majority)
+                                                                norm_rules = normalize_field_value(field, val_rules)
                                                                 
                                                                 # Special handling for different field types
                                                                 if field == 'is_mtm':
@@ -1390,18 +1404,9 @@ def run_streamlit_app():
                                     "field_consensus_stats": comparison_result["field_consensus_stats"],
                                     "api_outlier_count": comparison_result["api_outlier_count"],
                                     "llm_configuration": {
-                                        "first_api_call": {
-                                            "master_llm": llm1_master,
-                                            "slave_llm": llm1_slave
-                                        },
-                                        "second_api_call": {
-                                            "master_llm": llm2_master,
-                                            "slave_llm": llm2_slave
-                                        },
-                                        "third_api_call": {
-                                            "master_llm": llm3_master,
-                                            "slave_llm": llm3_slave
-                                        },
+                                        "master_llm": llm_master,
+                                        "slave_llm": llm_slave,
+                                        "n_batch_llm_calls": n_batch_llm_calls,
                                         "max_batch_rows": max_batch_rows,
                                         "bypass_rb": bypass_rb
                                     }
@@ -1447,18 +1452,9 @@ def run_streamlit_app():
                                     "api3_cost_breakdown": comparison_result["api3_cost_breakdown"],
                                     "total_cost": comparison_result["total_cost"],
                                     "llm_config": {
-                                        "first_api_call": {
-                                            "master_llm": llm1_master,
-                                            "slave_llm": llm1_slave
-                                        },
-                                        "second_api_call": {
-                                            "master_llm": llm2_master,
-                                            "slave_llm": llm2_slave
-                                        },
-                                        "third_api_call": {
-                                            "master_llm": llm3_master,
-                                            "slave_llm": llm3_slave
-                                        },
+                                        "master_llm": llm_master,
+                                        "slave_llm": llm_slave,
+                                        "n_batch_llm_calls": n_batch_llm_calls,
                                         "max_batch_rows": max_batch_rows,
                                         "bypass_rb": bypass_rb
                                     },
@@ -1578,488 +1574,13 @@ def run_streamlit_app():
                     
                     combined_report["individual_results"].append(file_summary)
                 
-                # Add download button for combined report
-                st.download_button(
-                    label="📥 Download Combined Report (JSON)",
-                    data=json.dumps(combined_report, indent=2, default=str),
-                    file_name=f"combined_comparison_report_{time.strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json",
-                    key="download_combined_report"
+                # Create and save combined report file
+                filepath, filename = create_download_file(
+                    combined_report, 
+                    f"combined_comparison_report_{time.strftime('%Y%m%d_%H%M%S')}.json",
+                    "Combined Report"
                 )
-            
-            # Display results
-            if results:
-                with results_container:
-                    st.subheader("Comparison Results")
-                    
-                    # Calculate average accuracy based on comparison mode
-                    if results[0]["comparison_mode"] == "2-way":
-                        avg_accuracy = sum(r["accuracy"] for r in results) / len(results)
-                        st.metric("Average Accuracy Across All Files", f"{avg_accuracy:.2f}%")
-                    else:
-                        avg_perfect = sum(r["perfect_accuracy"] for r in results) / len(results)
-                        avg_majority = sum(r["majority_accuracy"] for r in results) / len(results)
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric("Average Perfect Agreement", f"{avg_perfect:.2f}%")
-                        with col2:
-                            st.metric("Average Majority Consensus", f"{avg_majority:.2f}%")
-                    
-                    # Create tabs for each file
-                    tabs = st.tabs([os.path.basename(r["file"]) for r in results])
-                    
-                    for i, (tab, result) in enumerate(zip(tabs, results)):
-                        with tab:
-                            if result["comparison_mode"] == "2-way":
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.metric("File Accuracy", f"{result['accuracy']:.2f}%")
-                                with col2:
-                                    st.metric("Total Cost", f"${result['total_cost']}")
-                            else:
-                                # Show verification or rules-based results if available
-                                if result.get("verification_enabled") and result.get("verification_accuracy") is not None:
-                                    col1, col2, col3, col4 = st.columns(4)
-                                    with col1:
-                                        st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
-                                    with col2:
-                                        st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
-                                    with col3:
-                                        st.metric("Verification Accuracy", f"{result['verification_accuracy']:.2f}%")
-                                    with col4:
-                                        st.metric("Total Cost", f"${result['total_cost']}")
-                                elif result.get("rules_based_enabled") and result.get("verification_accuracy") is not None:
-                                    col1, col2, col3, col4 = st.columns(4)
-                                    with col1:
-                                        st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
-                                    with col2:
-                                        st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
-                                    with col3:
-                                        st.metric("Rules-Based Accuracy", f"{result['verification_accuracy']:.2f}%")
-                                    with col4:
-                                        st.metric("Total Cost", f"${result['total_cost']}")
-                                else:
-                                    col1, col2, col3 = st.columns(3)
-                                    with col1:
-                                        st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
-                                    with col2:
-                                        st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
-                                    with col3:
-                                        st.metric("Total Cost", f"${result['total_cost']}")
-                            
-            # Display cost breakdown
-            with st.expander("Cost Breakdown"):
-                if result["comparison_mode"] == "2-way":
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("**First API Call Cost:**")
-                        st.write(f"**Total: ${result['api1_cost']}**")
-                        if result['api1_cost_breakdown']:
-                            # Only show LLMs with cost > 0
-                            used_llms = [breakdown for breakdown in result['api1_cost_breakdown'] if breakdown['cost'] > 0]
-                            if used_llms:
-                                for breakdown in used_llms:
-                                    st.write(f"• **{breakdown['model']}**: ${breakdown['cost']}")
-                                    st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
-                                    st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
-                            else:
-                                st.write("No LLMs used (all costs are $0)")
-                        else:
-                            st.write("No cost data available")
-                    
-                    with col2:
-                        st.write("**Second API Call Cost:**")
-                        st.write(f"**Total: ${result['api2_cost']}**")
-                        if result['api2_cost_breakdown']:
-                            # Only show LLMs with cost > 0
-                            used_llms = [breakdown for breakdown in result['api2_cost_breakdown'] if breakdown['cost'] > 0]
-                            if used_llms:
-                                for breakdown in used_llms:
-                                    st.write(f"• **{breakdown['model']}**: ${breakdown['cost']}")
-                                    st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
-                                    st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
-                            else:
-                                st.write("No LLMs used (all costs are $0)")
-                        else:
-                            st.write("No cost data available")
-                else:
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.write("**First API Call Cost:**")
-                        st.write(f"**Total: ${result['api1_cost']}**")
-                        if result['api1_cost_breakdown']:
-                            # Only show LLMs with cost > 0
-                            used_llms = [breakdown for breakdown in result['api1_cost_breakdown'] if breakdown['cost'] > 0]
-                            if used_llms:
-                                for breakdown in used_llms:
-                                    st.write(f"• **{breakdown['model']}**: ${breakdown['cost']}")
-                                    st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
-                                    st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
-                            else:
-                                st.write("No LLMs used (all costs are $0)")
-                        else:
-                            st.write("No cost data available")
-                    
-                    with col2:
-                        st.write("**Second API Call Cost:**")
-                        st.write(f"**Total: ${result['api2_cost']}**")
-                        if result['api2_cost_breakdown']:
-                            # Only show LLMs with cost > 0
-                            used_llms = [breakdown for breakdown in result['api2_cost_breakdown'] if breakdown['cost'] > 0]
-                            if used_llms:
-                                for breakdown in used_llms:
-                                    st.write(f"• **{breakdown['model']}**: ${breakdown['cost']}")
-                                    st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
-                                    st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
-                            else:
-                                st.write("No LLMs used (all costs are $0)")
-                        else:
-                            st.write("No cost data available")
-                    
-                    with col3:
-                        st.write("**Third API Call Cost:**")
-                        st.write(f"**Total: ${result['api3_cost']}**")
-                        if result['api3_cost_breakdown']:
-                            # Only show LLMs with cost > 0
-                            used_llms = [breakdown for breakdown in result['api3_cost_breakdown'] if breakdown['cost'] > 0]
-                            if used_llms:
-                                for breakdown in used_llms:
-                                    st.write(f"• **{breakdown['model']}**: ${breakdown['cost']}")
-                                    st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
-                                    st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
-                            else:
-                                st.write("No LLMs used (all costs are $0)")
-                        else:
-                            st.write("No cost data available")
-                
-                st.write(f"**Combined Total Cost: ${result['total_cost']}**")
-            
-            # Display LLM configuration used for this comparison
-            with st.expander("LLM Configuration Used"):
-                st.write("**First API Call:**")
-                st.write(f"• Primary LLM: {result['llm_config']['first_api_call']['master_llm']}")
-                st.write(f"• Secondary LLM: {result['llm_config']['first_api_call']['slave_llm']}")
-                st.write("**Second API Call:**")
-                st.write(f"• Primary LLM: {result['llm_config']['second_api_call']['master_llm']}")
-                st.write(f"• Secondary LLM: {result['llm_config']['second_api_call']['slave_llm']}")
-                if result["comparison_mode"] == "3-way":
-                    st.write("**Third API Call:**")
-                    st.write(f"• Primary LLM: {result['llm_config']['third_api_call']['master_llm']}")
-                    st.write(f"• Secondary LLM: {result['llm_config']['third_api_call']['slave_llm']}")
-                st.write("**Other Settings:**")
-                st.write(f"• Max Batch Rows: {result['llm_config']['max_batch_rows']}")
-                st.write(f"• Bypass Rules-Based: {result['llm_config']['bypass_rb']}")
-            
-            if result["comparison_mode"] == "2-way":
-                # Display per-field accuracy for 2-way
-                st.subheader("Per-Field Accuracy")
-                field_df = pd.DataFrame({
-                    "Field": [field for field in result["field_stats"].keys()],
-                    "Accuracy (%)": [stats["accuracy"] for stats in result["field_stats"].values()],
-                    "Mismatches": [stats["mismatches"] for stats in result["field_stats"].values()],
-                    "Total": [stats["total"] for stats in result["field_stats"].values()]
-                })
-                field_df = field_df.sort_values("Accuracy (%)")
-                st.dataframe(field_df)
-                
-                # Display mismatch examples for 2-way
-                st.subheader("Field Mismatches")
-                all_mismatches = []
-                for field, mismatches in result["diffs"].items():
-                    for mismatch in mismatches:
-                        all_mismatches.append({
-                            "Field": field,
-                            "Unit": mismatch['key'],
-                            "API Call 1 Value": mismatch['api1_value'],
-                            "API Call 2 Value": mismatch['api2_value']
-                        })
-                
-                if all_mismatches:
-                    # Convert all values to strings to avoid Arrow serialization issues
-                    for mismatch in all_mismatches:
-                        mismatch["API Call 1 Value"] = str(mismatch["API Call 1 Value"]) if mismatch["API Call 1 Value"] is not None else "None"
-                        mismatch["API Call 2 Value"] = str(mismatch["API Call 2 Value"]) if mismatch["API Call 2 Value"] is not None else "None"
-                    
-                    mismatches_df = pd.DataFrame(all_mismatches)
-                    st.dataframe(mismatches_df)
-                    
-                    # Text list of differences
-                    st.subheader("Text List of Differences")
-                    for mismatch in all_mismatches:
-                        st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, API Call 1: {mismatch['API Call 1 Value']}, API Call 2: {mismatch['API Call 2 Value']}")
-                else:
-                    st.write("No differences found between API calls.")
-            
-            else:
-                # Display 3-way consensus analysis
-                st.subheader("Consensus Analysis")
-                
-                # Outlier frequency
-                st.subheader("Outlier Frequency")
-                outlier_df = pd.DataFrame({
-                    "API": ["API 1", "API 2", "API 3"],
-                    "Times as Outlier": [
-                        result["api_outlier_count"]["api1"],
-                        result["api_outlier_count"]["api2"],
-                        result["api_outlier_count"]["api3"]
-                    ]
-                })
-                st.dataframe(outlier_df)
-                
-                # Per-field consensus stats
-                st.subheader("Per-Field Consensus")
-                field_consensus_df = pd.DataFrame({
-                    "Field": [field for field in result["field_consensus_stats"].keys()],
-                    "Perfect Agreement": [stats["perfect"] for stats in result["field_consensus_stats"].values()],
-                    "Majority Agreement": [stats["majority"] for stats in result["field_consensus_stats"].values()],
-                    "Complete Disagreement": [stats["disagreement"] for stats in result["field_consensus_stats"].values()],
-                    "Total": [stats["total"] for stats in result["field_consensus_stats"].values()]
-                })
-                st.dataframe(field_consensus_df)
-                
-                # Display consensus mismatches
-                st.subheader("Consensus Mismatches")
-                all_consensus_mismatches = []
-                for field, mismatches in result["consensus_data"].items():
-                    for mismatch in mismatches:
-                        consensus_type_display = {
-                            "majority": "Majority (2 agree, 1 differs)",
-                            "disagreement": "Complete Disagreement"
-                        }.get(mismatch['consensus_type'], mismatch['consensus_type'])
-                        
-                        mismatch_row = {
-                            "Field": field,
-                            "Unit": mismatch['key'],
-                            "API Call 1 Value": mismatch['api1_value'],
-                            "API Call 2 Value": mismatch['api2_value'],
-                            "API Call 3 Value": mismatch['api3_value'],
-                            "Consensus Type": consensus_type_display
-                        }
-                        
-                        if mismatch['outlier_api']:
-                            mismatch_row["Outlier"] = mismatch['outlier_api'].upper()
-                        else:
-                            mismatch_row["Outlier"] = "N/A"
-                        
-                        all_consensus_mismatches.append(mismatch_row)
-                
-                if all_consensus_mismatches:
-                    # Convert all values to strings to avoid Arrow serialization issues
-                    for mismatch in all_consensus_mismatches:
-                        mismatch["API Call 1 Value"] = str(mismatch["API Call 1 Value"]) if mismatch["API Call 1 Value"] is not None else "None"
-                        mismatch["API Call 2 Value"] = str(mismatch["API Call 2 Value"]) if mismatch["API Call 2 Value"] is not None else "None"
-                        mismatch["API Call 3 Value"] = str(mismatch["API Call 3 Value"]) if mismatch["API Call 3 Value"] is not None else "None"
-                    
-                    consensus_df = pd.DataFrame(all_consensus_mismatches)
-                    st.dataframe(consensus_df)
-                    
-                    # Text list of consensus differences
-                    st.subheader("Text List of Consensus Differences")
-                    for mismatch in all_consensus_mismatches:
-                        outlier_text = f" (Outlier: {mismatch['Outlier']})" if mismatch['Outlier'] != "N/A" else ""
-                        st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, API1: {mismatch['API Call 1 Value']}, API2: {mismatch['API Call 2 Value']}, API3: {mismatch['API Call 3 Value']} - {mismatch['Consensus Type']}{outlier_text}")
-                else:
-                    st.write("Perfect consensus across all API calls!")
-            
-            # Provide download buttons
-            if result["comparison_mode"] == "2-way":
-                col1, col2, col3 = st.columns(3)
-            else:
-                col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                # Download for diff details
-                st.download_button(
-                    label="Download Comparison Details (JSON)",
-                    data=json.dumps(diff_output, indent=2, default=str),
-                    file_name=f"comparison_diff_{os.path.basename(result['file'])}.json",
-                    mime="application/json",
-                    key=f"download_diff_{i}"
-                )
-            
-            with col2:
-                # Download for first API output
-                st.download_button(
-                    label="Download First API Output (JSON)",
-                    data=json.dumps(result["api_output1"], indent=2, default=str),
-                    file_name=f"api1_output_{os.path.basename(result['file'])}.json",
-                    mime="application/json",
-                    key=f"download_api1_{i}"
-                )
-            
-            with col3:
-                # Download for second API output
-                st.download_button(
-                    label="Download Second API Output (JSON)",
-                    data=json.dumps(result["api_output2"], indent=2, default=str),
-                    file_name=f"api2_output_{os.path.basename(result['file'])}.json",
-                    mime="application/json",
-                    key=f"download_api2_{i}"
-                )
-            
-            if result["comparison_mode"] == "3-way":
-                with col4:
-                    # Download for third API output
-                    st.download_button(
-                        label="Download Third API Output (JSON)",
-                        data=json.dumps(result["api_output3"], indent=2, default=str),
-                        file_name=f"api3_output_{os.path.basename(result['file'])}.json",
-                        mime="application/json",
-                        key=f"download_api3_{i}"
-                    )
-            # Add verification results display for 3-way comparison
-            if result.get("verification_enabled") and result.get("verification_accuracy") is not None:
-                st.subheader("🔍 Verification Results")
-                st.success(f"Verification completed with {result['verification_accuracy']:.2f}% accuracy against verified file")
-                
-                # Calculate per-field verification accuracy
-                if result.get("verification_diffs"):
-                    verification_field_stats = {}
-                    verification_merged_df = result.get("verification_merged_df")
-                    
-                    if verification_merged_df is not None:
-                        matched_verification_rows = verification_merged_df[verification_merged_df['_merge'] == 'both']
-                        
-                        for field in FIELDS_TO_COMPARE:
-                            field_total = len(matched_verification_rows)
-                            field_mismatches = len(result["verification_diffs"].get(field, []))
-                            field_correct = field_total - field_mismatches
-                            field_accuracy = round(100 * field_correct / field_total, 2) if field_total > 0 else 0
-                            verification_field_stats[field] = {
-                                "accuracy": field_accuracy,
-                                "correct": field_correct,
-                                "total": field_total,
-                                "mismatches": field_mismatches
-                            }
-                        
-                        # Display per-field verification accuracy
-                        st.subheader("Per-Field Verification Accuracy")
-                        verification_field_df = pd.DataFrame({
-                            "Field": [field for field in verification_field_stats.keys()],
-                            "Accuracy (%)": [stats["accuracy"] for stats in verification_field_stats.values()],
-                            "Mismatches": [stats["mismatches"] for stats in verification_field_stats.values()],
-                            "Total": [stats["total"] for stats in verification_field_stats.values()]
-                        })
-                        verification_field_df = verification_field_df.sort_values("Accuracy (%)")
-                        st.dataframe(verification_field_df)
-                        
-                        # Display verification mismatches
-                        st.subheader("Verification Mismatches")
-                        all_verification_mismatches = []
-                        for field, mismatches in result["verification_diffs"].items():
-                            for mismatch in mismatches:
-                                all_verification_mismatches.append({
-                                    "Field": field,
-                                    "Unit": mismatch['key'],
-                                    "Majority Consensus Value": mismatch['api_value'],
-                                    "Verified Value": mismatch['verified_value']
-                                })
-                        
-                        if all_verification_mismatches:
-                            # Convert all values to strings to avoid Arrow serialization issues
-                            for mismatch in all_verification_mismatches:
-                                mismatch["Majority Consensus Value"] = str(mismatch["Majority Consensus Value"]) if mismatch["Majority Consensus Value"] is not None else "None"
-                                mismatch["Verified Value"] = str(mismatch["Verified Value"]) if mismatch["Verified Value"] is not None else "None"
-                            
-                            verification_mismatches_df = pd.DataFrame(all_verification_mismatches)
-                            st.dataframe(verification_mismatches_df)
-                            
-                            # Text list of verification differences
-                            st.subheader("Text List of Verification Differences")
-                            for mismatch in all_verification_mismatches:
-                                st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, Majority Consensus: {mismatch['Majority Consensus Value']}, Verified: {mismatch['Verified Value']}")
-                        else:
-                            st.write("Perfect match between majority consensus and verified file!")
-                
-                # Add download button for verification results
-                if result.get("majority_consensus_output"):
-                    st.download_button(
-                        label="Download Majority Consensus Output (JSON)",
-                        data=json.dumps(result["majority_consensus_output"], indent=2, default=str),
-                        file_name=f"majority_consensus_{os.path.basename(result['file'])}.json",
-                        mime="application/json",
-                        key=f"download_majority_{i}"
-                    )
-            
-            # Add rules-based results display for 3-way comparison
-            elif result.get("rules_based_enabled") and result.get("verification_accuracy") is not None:
-                st.subheader("🔧 Rules-Based Comparison Results")
-                st.success(f"Rules-based comparison completed with {result['verification_accuracy']:.2f}% accuracy against rules-based approach")
-                
-                # Calculate per-field rules-based accuracy
-                if result.get("verification_diffs"):
-                    rules_based_field_stats = {}
-                    rules_based_merged_df = result.get("verification_merged_df")
-                    
-                    if rules_based_merged_df is not None:
-                        matched_rules_based_rows = rules_based_merged_df[rules_based_merged_df['_merge'] == 'both']
-                        
-                        for field in FIELDS_TO_COMPARE:
-                            field_total = len(matched_rules_based_rows)
-                            field_mismatches = len(result["verification_diffs"].get(field, []))
-                            field_correct = field_total - field_mismatches
-                            field_accuracy = round(100 * field_correct / field_total, 2) if field_total > 0 else 0
-                            rules_based_field_stats[field] = {
-                                "accuracy": field_accuracy,
-                                "correct": field_correct,
-                                "total": field_total,
-                                "mismatches": field_mismatches
-                            }
-                        
-                        # Display per-field rules-based accuracy
-                        st.subheader("Per-Field Rules-Based Accuracy")
-                        rules_based_field_df = pd.DataFrame({
-                            "Field": [field for field in rules_based_field_stats.keys()],
-                            "Accuracy (%)": [stats["accuracy"] for stats in rules_based_field_stats.values()],
-                            "Mismatches": [stats["mismatches"] for stats in rules_based_field_stats.values()],
-                            "Total": [stats["total"] for stats in rules_based_field_stats.values()]
-                        })
-                        rules_based_field_df = rules_based_field_df.sort_values("Accuracy (%)")
-                        st.dataframe(rules_based_field_df)
-                        
-                        # Display rules-based mismatches
-                        st.subheader("Rules-Based Mismatches")
-                        all_rules_based_mismatches = []
-                        for field, mismatches in result["verification_diffs"].items():
-                            for mismatch in mismatches:
-                                all_rules_based_mismatches.append({
-                                    "Field": field,
-                                    "Unit": mismatch['key'],
-                                    "Majority Consensus Value": mismatch['api_value'],
-                                    "Rules-Based Value": mismatch['rules_value']
-                                })
-                        
-                        if all_rules_based_mismatches:
-                            # Convert all values to strings to avoid Arrow serialization issues
-                            for mismatch in all_rules_based_mismatches:
-                                mismatch["Majority Consensus Value"] = str(mismatch["Majority Consensus Value"]) if mismatch["Majority Consensus Value"] is not None else "None"
-                                mismatch["Rules-Based Value"] = str(mismatch["Rules-Based Value"]) if mismatch["Rules-Based Value"] is not None else "None"
-                            
-                            rules_based_mismatches_df = pd.DataFrame(all_rules_based_mismatches)
-                            st.dataframe(rules_based_mismatches_df)
-                            
-                            # Text list of rules-based differences
-                            st.subheader("Text List of Rules-Based Differences")
-                            for mismatch in all_rules_based_mismatches:
-                                st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, Majority Consensus: {mismatch['Majority Consensus Value']}, Rules-Based: {mismatch['Rules-Based Value']}")
-                        else:
-                            st.write("Perfect match between majority consensus and rules-based approach!")
-                
-                # Add download button for rules-based results
-                if result.get("majority_consensus_output"):
-                    st.download_button(
-                        label="Download Majority Consensus Output (JSON)",
-                        data=json.dumps(result["majority_consensus_output"], indent=2, default=str),
-                        file_name=f"majority_consensus_{os.path.basename(result['file'])}.json",
-                        mime="application/json",
-                        key=f"download_majority_{i}"
-                    )
-            
-            # Display side-by-side comparison (optional, can be large)
-            if result["merged_df"] is not None and st.checkbox("Show Detailed Comparison Table", key=f"show_table_{i}"):
-                st.dataframe(result["merged_df"])
-            else:
-                st.error("No successful comparisons were completed. Check the logs for errors.")
+                st.success(f"📥 **Combined Report Ready**: [Download {filename}](./{filepath})")
             
             # Clean up temp files
             try:
@@ -2067,6 +1588,486 @@ def run_streamlit_app():
                 shutil.rmtree(temp_dir)
             except OSError as e:
                 st.warning(f"Could not remove temporary files: {e}")
+    
+    # Display results from session state (outside the button block so they persist)
+    if st.session_state.results:
+        st.subheader("Comparison Results")
+        
+        # Calculate average accuracy based on comparison mode
+        if st.session_state.results[0]["comparison_mode"] == "2-way":
+            avg_accuracy = sum(r["accuracy"] for r in st.session_state.results) / len(st.session_state.results)
+            st.metric("Average Accuracy Across All Files", f"{avg_accuracy:.2f}%")
+        else:
+            avg_perfect = sum(r["perfect_accuracy"] for r in st.session_state.results) / len(st.session_state.results)
+            avg_majority = sum(r["majority_accuracy"] for r in st.session_state.results) / len(st.session_state.results)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Average Perfect Agreement", f"{avg_perfect:.2f}%")
+            with col2:
+                st.metric("Average Majority Consensus", f"{avg_majority:.2f}%")
+        
+        # Create tabs for each file
+        tabs = st.tabs([os.path.basename(r["file"]) for r in st.session_state.results])
+        
+        for i, (tab, result) in enumerate(zip(tabs, st.session_state.results)):
+            with tab:
+                if result["comparison_mode"] == "2-way":
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("File Accuracy", f"{result['accuracy']:.2f}%")
+                    with col2:
+                        st.metric("Total Cost", f"${result['total_cost']}")
+                else:
+                    # Show verification or rules-based results if available
+                    if result.get("verification_enabled") and result.get("verification_accuracy") is not None:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
+                        with col2:
+                            st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
+                        with col3:
+                            st.metric("Verification Accuracy", f"{result['verification_accuracy']:.2f}%")
+                        with col4:
+                            st.metric("Total Cost", f"${result['total_cost']}")
+                    elif result.get("rules_based_enabled") and result.get("verification_accuracy") is not None:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
+                        with col2:
+                            st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
+                        with col3:
+                            st.metric("Rules-Based Accuracy", f"{result['verification_accuracy']:.2f}%")
+                        with col4:
+                            st.metric("Total Cost", f"${result['total_cost']}")
+                    else:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Perfect Agreement", f"{result['perfect_accuracy']:.2f}%")
+                        with col2:
+                            st.metric("Majority Consensus", f"{result['majority_accuracy']:.2f}%")
+                        with col3:
+                            st.metric("Total Cost", f"${result['total_cost']}")
+                
+                # Summary Section
+                st.subheader("📊 Results Summary")
+                if result["comparison_mode"] == "2-way":
+                    st.write(f"**2-Way LLM Comparison Accuracy:** {result['accuracy']:.2f}%")
+                else:
+                    summary_text = f"**3-Way LLM Results:** Perfect Agreement: {result['perfect_accuracy']:.2f}%, Majority Consensus: {result['majority_accuracy']:.2f}%"
+                    
+                    if result.get("verification_enabled") and result.get("verification_accuracy") is not None:
+                        summary_text += f"\n\n**Verification Against Ground Truth:** {result['verification_accuracy']:.2f}% accuracy"
+                    elif result.get("rules_based_enabled") and result.get("verification_accuracy") is not None:
+                        summary_text += f"\n\n**Rules-Based Comparison:** {result['verification_accuracy']:.2f}% accuracy"
+                    
+                    st.write(summary_text)
+                
+                st.write(f"**Total Processing Cost:** ${result['total_cost']}")
+                
+                # Display cost breakdown
+                with st.expander("💰 Cost Breakdown"):
+                    if result["comparison_mode"] == "2-way":
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write("**First API Call Cost:**")
+                            st.write(f"**Total: ${result['api1_cost']:.4f}**")
+                            if result['api1_cost_breakdown']:
+                                # Only show LLMs with cost > 0
+                                used_llms = [breakdown for breakdown in result['api1_cost_breakdown'] if breakdown['cost'] > 0]
+                                if used_llms:
+                                    for breakdown in used_llms:
+                                        st.write(f"• **{breakdown['model']}**: ${breakdown['cost']:.4f}")
+                                        st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
+                                        st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
+                                else:
+                                    st.write("No LLMs used (all costs are $0)")
+                            else:
+                                st.write("No cost data available")
+                        
+                        with col2:
+                            st.write("**Second API Call Cost:**")
+                            st.write(f"**Total: ${result['api2_cost']:.4f}**")
+                            if result['api2_cost_breakdown']:
+                                # Only show LLMs with cost > 0
+                                used_llms = [breakdown for breakdown in result['api2_cost_breakdown'] if breakdown['cost'] > 0]
+                                if used_llms:
+                                    for breakdown in used_llms:
+                                        st.write(f"• **{breakdown['model']}**: ${breakdown['cost']:.4f}")
+                                        st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
+                                        st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
+                                else:
+                                    st.write("No LLMs used (all costs are $0)")
+                            else:
+                                st.write("No cost data available")
+                    else:
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.write("**First API Call Cost:**")
+                            st.write(f"**Total: ${result['api1_cost']:.4f}**")
+                            if result['api1_cost_breakdown']:
+                                # Only show LLMs with cost > 0
+                                used_llms = [breakdown for breakdown in result['api1_cost_breakdown'] if breakdown['cost'] > 0]
+                                if used_llms:
+                                    for breakdown in used_llms:
+                                        st.write(f"• **{breakdown['model']}**: ${breakdown['cost']:.4f}")
+                                        st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
+                                        st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
+                                else:
+                                    st.write("No LLMs used (all costs are $0)")
+                            else:
+                                st.write("No cost data available")
+                        
+                        with col2:
+                            st.write("**Second API Call Cost:**")
+                            st.write(f"**Total: ${result['api2_cost']:.4f}**")
+                            if result['api2_cost_breakdown']:
+                                # Only show LLMs with cost > 0
+                                used_llms = [breakdown for breakdown in result['api2_cost_breakdown'] if breakdown['cost'] > 0]
+                                if used_llms:
+                                    for breakdown in used_llms:
+                                        st.write(f"• **{breakdown['model']}**: ${breakdown['cost']:.4f}")
+                                        st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
+                                        st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
+                                else:
+                                    st.write("No LLMs used (all costs are $0)")
+                            else:
+                                st.write("No cost data available")
+                        
+                        with col3:
+                            st.write("**Third API Call Cost:**")
+                            st.write(f"**Total: ${result['api3_cost']:.4f}**")
+                            if result['api3_cost_breakdown']:
+                                # Only show LLMs with cost > 0
+                                used_llms = [breakdown for breakdown in result['api3_cost_breakdown'] if breakdown['cost'] > 0]
+                                if used_llms:
+                                    for breakdown in used_llms:
+                                        st.write(f"• **{breakdown['model']}**: ${breakdown['cost']:.4f}")
+                                        st.write(f"  - Input tokens: {breakdown['in_tokens']:,}")
+                                        st.write(f"  - Output tokens: {breakdown['out_tokens']:,}")
+                                else:
+                                    st.write("No LLMs used (all costs are $0)")
+                            else:
+                                st.write("No cost data available")
+                    
+                    st.write(f"**Combined Total Cost: ${result['total_cost']:.4f}**")
+                
+                # Display LLM configuration used for this comparison
+                with st.expander("LLM Configuration Used"):
+                    st.write("**Batch LLM Configuration:**")
+                    st.write(f"• Primary LLM: {result['llm_config']['master_llm']}")
+                    st.write(f"• Secondary LLM: {result['llm_config']['slave_llm']}")
+                    st.write(f"• Number of LLM Calls: {result['llm_config']['n_batch_llm_calls']}")
+                    st.write("**Other Settings:**")
+                    st.write(f"• Max Batch Rows: {result['llm_config']['max_batch_rows']}")
+                    st.write(f"• Bypass Rules-Based: {result['llm_config']['bypass_rb']}")
+                
+                if result["comparison_mode"] == "2-way":
+                    # Display per-field accuracy for 2-way
+                    st.subheader("Per-Field Accuracy")
+                    field_df = pd.DataFrame({
+                        "Field": [field for field in result["field_stats"].keys()],
+                        "Accuracy (%)": [stats["accuracy"] for stats in result["field_stats"].values()],
+                        "Mismatches": [stats["mismatches"] for stats in result["field_stats"].values()],
+                        "Total": [stats["total"] for stats in result["field_stats"].values()]
+                    })
+                    field_df = field_df.sort_values("Accuracy (%)")
+                    st.dataframe(field_df)
+                    
+                    # Display mismatch examples for 2-way
+                    st.subheader("Field Mismatches")
+                    all_mismatches = []
+                    for field, mismatches in result["diffs"].items():
+                        for mismatch in mismatches:
+                            all_mismatches.append({
+                                "Field": field,
+                                "Unit": mismatch['key'],
+                                "API Call 1 Value": mismatch['api1_value'],
+                                "API Call 2 Value": mismatch['api2_value']
+                            })
+                    
+                    if all_mismatches:
+                        # Convert all values to strings to avoid Arrow serialization issues
+                        for mismatch in all_mismatches:
+                            mismatch["API Call 1 Value"] = str(mismatch["API Call 1 Value"]) if mismatch["API Call 1 Value"] is not None else "None"
+                            mismatch["API Call 2 Value"] = str(mismatch["API Call 2 Value"]) if mismatch["API Call 2 Value"] is not None else "None"
+                        
+                        mismatches_df = pd.DataFrame(all_mismatches)
+                        st.dataframe(mismatches_df)
+                        
+                        # Text list of differences
+                        st.subheader("Text List of Differences")
+                        for mismatch in all_mismatches:
+                            st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, API Call 1: {mismatch['API Call 1 Value']}, API Call 2: {mismatch['API Call 2 Value']}")
+                    else:
+                        st.write("No differences found between API calls.")
+                
+                else:
+                    # Display 3-way consensus analysis
+                    st.subheader("Consensus Analysis")
+                    
+                    # Outlier frequency
+                    st.subheader("Outlier Frequency")
+                    outlier_df = pd.DataFrame({
+                        "API": ["API 1", "API 2", "API 3"],
+                        "Times as Outlier": [
+                            result["api_outlier_count"]["api1"],
+                            result["api_outlier_count"]["api2"],
+                            result["api_outlier_count"]["api3"]
+                        ]
+                    })
+                    st.dataframe(outlier_df)
+                    
+                    # Per-field consensus stats
+                    st.subheader("Per-Field Consensus")
+                    field_consensus_df = pd.DataFrame({
+                        "Field": [field for field in result["field_consensus_stats"].keys()],
+                        "Perfect Agreement": [stats["perfect"] for stats in result["field_consensus_stats"].values()],
+                        "Majority Agreement": [stats["majority"] for stats in result["field_consensus_stats"].values()],
+                        "Complete Disagreement": [stats["disagreement"] for stats in result["field_consensus_stats"].values()],
+                        "Total": [stats["total"] for stats in result["field_consensus_stats"].values()]
+                    })
+                    st.dataframe(field_consensus_df)
+                    
+                    # Display consensus mismatches
+                    st.subheader("Consensus Mismatches")
+                    all_consensus_mismatches = []
+                    for field, mismatches in result["consensus_data"].items():
+                        for mismatch in mismatches:
+                            consensus_type_display = {
+                                "majority": "Majority (2 agree, 1 differs)",
+                                "disagreement": "Complete Disagreement"
+                            }.get(mismatch['consensus_type'], mismatch['consensus_type'])
+                            
+                            mismatch_row = {
+                                "Field": field,
+                                "Unit": mismatch['key'],
+                                "API Call 1 Value": mismatch['api1_value'],
+                                "API Call 2 Value": mismatch['api2_value'],
+                                "API Call 3 Value": mismatch['api3_value'],
+                                "Consensus Type": consensus_type_display
+                            }
+                            
+                            if mismatch['outlier_api']:
+                                mismatch_row["Outlier"] = mismatch['outlier_api'].upper()
+                            else:
+                                mismatch_row["Outlier"] = "N/A"
+                            
+                            all_consensus_mismatches.append(mismatch_row)
+                    
+                    if all_consensus_mismatches:
+                        # Convert all values to strings to avoid Arrow serialization issues
+                        for mismatch in all_consensus_mismatches:
+                            mismatch["API Call 1 Value"] = str(mismatch["API Call 1 Value"]) if mismatch["API Call 1 Value"] is not None else "None"
+                            mismatch["API Call 2 Value"] = str(mismatch["API Call 2 Value"]) if mismatch["API Call 2 Value"] is not None else "None"
+                            mismatch["API Call 3 Value"] = str(mismatch["API Call 3 Value"]) if mismatch["API Call 3 Value"] is not None else "None"
+                        
+                        consensus_df = pd.DataFrame(all_consensus_mismatches)
+                        st.dataframe(consensus_df)
+                        
+                        # Text list of consensus differences
+                        st.subheader("Text List of Consensus Differences")
+                        for mismatch in all_consensus_mismatches:
+                            outlier_text = f" (Outlier: {mismatch['Outlier']})" if mismatch['Outlier'] != "N/A" else ""
+                            st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, API1: {mismatch['API Call 1 Value']}, API2: {mismatch['API Call 2 Value']}, API3: {mismatch['API Call 3 Value']} - {mismatch['Consensus Type']}{outlier_text}")
+                    else:
+                        st.write("Perfect consensus across all API calls!")
+                
+                # Provide file-based downloads
+                st.subheader("📥 Download Files")
+                if result["comparison_mode"] == "2-way":
+                    col1, col2, col3 = st.columns(3)
+                else:
+                    col1, col2, col3, col4 = st.columns(4)
+                
+                # Get the diff_output from session state
+                diff_output = st.session_state.download_data.get(os.path.basename(result["file"]), {}).get("diff_output", {})
+                
+                with col1:
+                    # Create and save comparison details file
+                    filepath, filename = create_download_file(
+                        diff_output, 
+                        f"comparison_diff_{os.path.basename(result['file'])}.json",
+                        f"Comparison Details {i}"
+                    )
+                    st.success(f"📊 **Comparison Details**: [Download {filename}](./{filepath})")
+                
+                with col2:
+                    # Create and save first API output file
+                    filepath, filename = create_download_file(
+                        result["api_output1"], 
+                        f"api1_output_{os.path.basename(result['file'])}.json",
+                        f"API Output 1 {i}"
+                    )
+                    st.success(f"🔧 **API Output 1**: [Download {filename}](./{filepath})")
+                
+                with col3:
+                    # Create and save second API output file
+                    filepath, filename = create_download_file(
+                        result["api_output2"], 
+                        f"api2_output_{os.path.basename(result['file'])}.json",
+                        f"API Output 2 {i}"
+                    )
+                    st.success(f"🔧 **API Output 2**: [Download {filename}](./{filepath})")
+                
+                if result["comparison_mode"] == "3-way":
+                    with col4:
+                        # Create and save third API output file
+                        filepath, filename = create_download_file(
+                            result["api_output3"], 
+                            f"api3_output_{os.path.basename(result['file'])}.json",
+                            f"API Output 3 {i}"
+                        )
+                        st.success(f"🔧 **API Output 3**: [Download {filename}](./{filepath})")
+                
+                # Add verification results display for 3-way comparison
+                if result.get("verification_enabled") and result.get("verification_accuracy") is not None:
+                    st.subheader("🔍 Verification Results")
+                    st.success(f"Verification completed with {result['verification_accuracy']:.2f}% accuracy against verified file")
+                    
+                    # Calculate per-field verification accuracy
+                    if result.get("verification_diffs"):
+                        verification_field_stats = {}
+                        verification_merged_df = result.get("verification_merged_df")
+                        
+                        if verification_merged_df is not None:
+                            matched_verification_rows = verification_merged_df[verification_merged_df['_merge'] == 'both']
+                            
+                            for field in FIELDS_TO_COMPARE:
+                                field_total = len(matched_verification_rows)
+                                field_mismatches = len(result["verification_diffs"].get(field, []))
+                                field_correct = field_total - field_mismatches
+                                field_accuracy = round(100 * field_correct / field_total, 2) if field_total > 0 else 0
+                                verification_field_stats[field] = {
+                                    "accuracy": field_accuracy,
+                                    "correct": field_correct,
+                                    "total": field_total,
+                                    "mismatches": field_mismatches
+                                }
+                            
+                            # Display per-field verification accuracy
+                            st.subheader("Per-Field Verification Accuracy")
+                            verification_field_df = pd.DataFrame({
+                                "Field": [field for field in verification_field_stats.keys()],
+                                "Accuracy (%)": [stats["accuracy"] for stats in verification_field_stats.values()],
+                                "Mismatches": [stats["mismatches"] for stats in verification_field_stats.values()],
+                                "Total": [stats["total"] for stats in verification_field_stats.values()]
+                            })
+                            verification_field_df = verification_field_df.sort_values("Accuracy (%)")
+                            st.dataframe(verification_field_df)
+                            
+                            # Display verification mismatches
+                            st.subheader("Verification Mismatches")
+                            all_verification_mismatches = []
+                            for field, mismatches in result["verification_diffs"].items():
+                                for mismatch in mismatches:
+                                    all_verification_mismatches.append({
+                                        "Field": field,
+                                        "Unit": mismatch['key'],
+                                        "Majority Consensus Value": mismatch['api_value'],
+                                        "Verified Value": mismatch['verified_value']
+                                    })
+                            
+                            if all_verification_mismatches:
+                                # Convert all values to strings to avoid Arrow serialization issues
+                                for mismatch in all_verification_mismatches:
+                                    mismatch["Majority Consensus Value"] = str(mismatch["Majority Consensus Value"]) if mismatch["Majority Consensus Value"] is not None else "None"
+                                    mismatch["Verified Value"] = str(mismatch["Verified Value"]) if mismatch["Verified Value"] is not None else "None"
+                                
+                                verification_mismatches_df = pd.DataFrame(all_verification_mismatches)
+                                st.dataframe(verification_mismatches_df)
+                                
+                                # Text list of verification differences
+                                st.subheader("Text List of Verification Differences")
+                                for mismatch in all_verification_mismatches:
+                                    st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, Majority Consensus: {mismatch['Majority Consensus Value']}, Verified: {mismatch['Verified Value']}")
+                            else:
+                                st.write("Perfect match between majority consensus and verified file!")
+                    
+                    # Create and save majority consensus file
+                    if result.get("majority_consensus_output"):
+                        filepath, filename = create_download_file(
+                            result["majority_consensus_output"], 
+                            f"majority_consensus_{os.path.basename(result['file'])}.json",
+                            f"Majority Consensus {i}"
+                        )
+                        st.success(f"🎯 **Majority Consensus**: [Download {filename}](./{filepath})")
+                
+                # Add rules-based results display for 3-way comparison
+                elif result.get("rules_based_enabled") and result.get("verification_accuracy") is not None:
+                    st.subheader("🔧 Rules-Based Comparison Results")
+                    st.success(f"Rules-based comparison completed with {result['verification_accuracy']:.2f}% accuracy against rules-based approach")
+                    
+                    # Calculate per-field rules-based accuracy
+                    if result.get("verification_diffs"):
+                        rules_based_field_stats = {}
+                        rules_based_merged_df = result.get("verification_merged_df")
+                        
+                        if rules_based_merged_df is not None:
+                            matched_rules_based_rows = rules_based_merged_df[rules_based_merged_df['_merge'] == 'both']
+                            
+                            for field in FIELDS_TO_COMPARE:
+                                field_total = len(matched_rules_based_rows)
+                                field_mismatches = len(result["verification_diffs"].get(field, []))
+                                field_correct = field_total - field_mismatches
+                                field_accuracy = round(100 * field_correct / field_total, 2) if field_total > 0 else 0
+                                rules_based_field_stats[field] = {
+                                    "accuracy": field_accuracy,
+                                    "correct": field_correct,
+                                    "total": field_total,
+                                    "mismatches": field_mismatches
+                                }
+                            
+                            # Display per-field rules-based accuracy
+                            st.subheader("Per-Field Rules-Based Accuracy")
+                            rules_based_field_df = pd.DataFrame({
+                                "Field": [field for field in rules_based_field_stats.keys()],
+                                "Accuracy (%)": [stats["accuracy"] for stats in rules_based_field_stats.values()],
+                                "Mismatches": [stats["mismatches"] for stats in rules_based_field_stats.values()],
+                                "Total": [stats["total"] for stats in rules_based_field_stats.values()]
+                            })
+                            rules_based_field_df = rules_based_field_df.sort_values("Accuracy (%)")
+                            st.dataframe(rules_based_field_df)
+                            
+                            # Display rules-based mismatches
+                            st.subheader("Rules-Based Mismatches")
+                            all_rules_based_mismatches = []
+                            for field, mismatches in result["verification_diffs"].items():
+                                for mismatch in mismatches:
+                                    all_rules_based_mismatches.append({
+                                        "Field": field,
+                                        "Unit": mismatch['key'],
+                                        "Majority Consensus Value": mismatch['api_value'],
+                                        "Rules-Based Value": mismatch['rules_value']
+                                    })
+                            
+                            if all_rules_based_mismatches:
+                                # Convert all values to strings to avoid Arrow serialization issues
+                                for mismatch in all_rules_based_mismatches:
+                                    mismatch["Majority Consensus Value"] = str(mismatch["Majority Consensus Value"]) if mismatch["Majority Consensus Value"] is not None else "None"
+                                    mismatch["Rules-Based Value"] = str(mismatch["Rules-Based Value"]) if mismatch["Rules-Based Value"] is not None else "None"
+                                
+                                rules_based_mismatches_df = pd.DataFrame(all_rules_based_mismatches)
+                                st.dataframe(rules_based_mismatches_df)
+                                
+                                # Text list of rules-based differences
+                                st.subheader("Text List of Rules-Based Differences")
+                                for mismatch in all_rules_based_mismatches:
+                                    st.write(f"Cell: {mismatch['Unit']}.{mismatch['Field']}, Majority Consensus: {mismatch['Majority Consensus Value']}, Rules-Based: {mismatch['Rules-Based Value']}")
+                            else:
+                                st.write("Perfect match between majority consensus and rules-based approach!")
+                    
+                    # Create and save majority consensus file for rules-based results
+                    if result.get("majority_consensus_output"):
+                        filepath, filename = create_download_file(
+                            result["majority_consensus_output"], 
+                            f"majority_consensus_{os.path.basename(result['file'])}.json",
+                            f"Majority Consensus Rules {i}"
+                        )
+                        st.success(f"🎯 **Majority Consensus**: [Download {filename}](./{filepath})")
+                
+                # Display side-by-side comparison (optional, can be large)
+                if result["merged_df"] is not None and st.checkbox("Show Detailed Comparison Table", key=f"show_table_{i}"):
+                    st.dataframe(result["merged_df"])
     
     # Display downloads section if we have completed files in session state
     if st.session_state.download_data:

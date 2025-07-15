@@ -1,0 +1,136 @@
+{
+  "file": "C:\\Users\\maxgo\\AppData\\Local\\Temp\\tmpjl_lg040\\Saddlebrook I RR 02-23-24 (3).xlsx",
+  "comparison_mode": "3-way",
+  "perfect_accuracy_percent": 100.0,
+  "majority_accuracy_percent": 100.0,
+  "consensus_data": {},
+  "field_consensus_stats": {
+    "unit_num": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "unit_type": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "sqft": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "br": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "bath": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "tenant": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "move_in": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "lease_start": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "lease_end": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "rent_charge": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "rent_gov_subsidy": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "is_mtm": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "mtm_charge": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    },
+    "rent_market": {
+      "perfect": 40,
+      "majority": 0,
+      "disagreement": 0,
+      "total": 40
+    }
+  },
+  "api_outlier_count": {
+    "api1": 0,
+    "api2": 0,
+    "api3": 0
+  },
+  "llm_configuration": {
+    "master_llm": "claude-sonnet-4-20250514",
+    "slave_llm": "gemini-2.5-flash",
+    "n_batch_llm_calls": 3,
+    "max_batch_rows": 50,
+    "bypass_rb": true
+  },
+  "rules_based_enabled": true,
+  "rules_based_accuracy_percent": 99.11,
+  "rules_based_mismatches": {
+    "tenant": [
+      {
+        "key": 2,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      },
+      {
+        "key": 3,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      },
+      {
+        "key": 16,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Unassigned>>"
+      },
+      {
+        "key": 21,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      },
+      {
+        "key": 35,
+        "api_value": "None",
+        "rules_value": "<<<Vacant-Assigned>>>"
+      }
+    ]
+  }
+}
